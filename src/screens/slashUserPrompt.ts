@@ -1,0 +1,53 @@
+import { shouldAutoCompact } from "../services/compact/autoCompact.js";
+import { compactConversation } from "../services/compact/compactConversation.js";
+import { createCheckpoint } from "../services/checkpoints/shadowRepo.js";
+import { recordCheckpoint } from "../services/checkpoints/checkpointState.js";
+import { expandSkill, matchSkillCommand } from "../skills/loadSkills.js";
+import { getUsage } from "../state/usage.js";
+import type { ChatMessage } from "../types/messages.js";
+import { expandFileMentions } from "../utils/fileMentions.js";
+import { getCwd } from "../utils/cwd.js";
+import { runHookEvent } from "../services/hooks/runHooks.js";
+import type { SlashActionContext, SlashActionResult } from "./slashActionTypes.js";
+
+export const runUserPromptAction = async (
+  context: SlashActionContext,
+): Promise<SlashActionResult> => {
+  const skillMatch = matchSkillCommand(context.input, context.skills);
+  if (skillMatch) {
+    const prompt = `[Skill: ${skillMatch.skill.name}]\n${expandSkill(skillMatch.skill, skillMatch.args)}`;
+    const nextMessages: ChatMessage[] = [...context.messages, { role: "user", content: prompt }];
+    return { type: "skill", prompt, messages: nextMessages };
+  }
+  const promptHook = await runHookEvent(context.hooksConfig, {
+    event: "UserPromptSubmit",
+    prompt: context.input,
+    cwd: getCwd(),
+  });
+  if (!promptHook.allowed) {
+    return { type: "status", content: promptHook.reason ?? "prompt blocked", title: "Blocked" };
+  }
+  const expanded = await expandFileMentions(context.input, getCwd());
+  const promptBody =
+    promptHook.allowed && promptHook.context
+      ? `${promptHook.context}\n\n${expanded.prompt}`
+      : expanded.prompt;
+  const attachmentBlock =
+    expanded.attachments.length > 0 ? expanded.attachments.join("\n\n") : "";
+  const userContent = attachmentBlock ? `${promptBody}\n\n${attachmentBlock}` : promptBody;
+  const userMessage: ChatMessage = { role: "user", content: userContent };
+  let queryMessages: ChatMessage[] = [...context.messages, userMessage];
+  if (
+    context.messages.length > 0 &&
+    shouldAutoCompact(getUsage().lastPromptTokens, context.maxContextTokens)
+  ) {
+    const compacted = await compactConversation(context.settings, context.messages);
+    queryMessages = [...compacted, userMessage];
+    context.session.persistSession(compacted);
+  }
+  const checkpoint = await createCheckpoint(context.input.slice(0, 40));
+  if (checkpoint) {
+    recordCheckpoint(checkpoint, context.messages.length);
+  }
+  return { type: "query", messages: queryMessages };
+};

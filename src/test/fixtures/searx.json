@@ -1,0 +1,27 @@
+{
+  "query": "Crvenka Serbia",
+  "number_of_results": 2,
+  "results": [
+    {
+      "url": "https://en.wikipedia.org/wiki/Crvenka",
+      "title": "Crvenka - Wikipedia",
+      "content": "Crvenka is a small town in Serbia.",
+      "engine": "wikipedia",
+      "template": "default.html",
+      "parsed_url": ["https", "", "en.wikipedia.org", "/wiki/Crvenka", "", ""]
+    },
+    {
+      "url": "https://example.com/crvenka",
+      "title": "About Crvenka",
+      "content": "Local information about Crvenka.",
+      "engine": "bing",
+      "template": "default.html",
+      "parsed_url": ["https", "", "example.com", "/crvenka", "", ""]
+    },
+    {
+      "url": "",
+      "title": "Broken row",
+      "content": "Should be skipped"
+    }
+  ]
+}

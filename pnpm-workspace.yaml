@@ -1,0 +1,4 @@
+minimumReleaseAgeExclude:
+  - marked@18.0.7
+onlyBuiltDependencies:
+  - esbuild
