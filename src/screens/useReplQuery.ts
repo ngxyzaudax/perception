@@ -4,11 +4,12 @@ import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { Settings } from "../schemas/settings.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import type { ChatMessage } from "../types/messages.js";
-import { runHookEvent } from "../services/hooks/runHooks.js";
-import { getCwd } from "../utils/cwd.js";
 import { createQueryEventHandler, createQueryStatusSetter } from "./queryEventHandler.js";
 import { useStreamingDisplay } from "./useStreamingDisplay.js";
-import type { ReplQueryController } from "./replQueryTypes.js";
+import { clearRunningTools } from "../state/runningTools.js";
+import type { SpinnerMode } from "./spinnerMode.js";
+import { filterToolRegistry } from "../Tool.js";
+import type { QueryOverrides, ReplQueryController } from "./replQueryTypes.js";
 
 export type { ReplQueryController } from "./replQueryTypes.js";
 
@@ -18,6 +19,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
   const [preparing, setPreparingState] = useState(false);
   const [status, setStatusState] = useState("");
   const [queryStartedAt, setQueryStartedAt] = useState<number | null>(null);
+  const [spinnerMode, setSpinnerMode] = useState<SpinnerMode>("thinking");
   const [queuedInputs, setQueuedInputs] = useState<string[]>([]);
   const queueRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -69,6 +71,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
       onMessageComplete?: (message: ChatMessage) => void,
       onErrorNotice?: (message: string) => void,
       systemPromptOverride?: string,
+      overrides?: QueryOverrides,
     ): Promise<void> => {
       const controller = new AbortController();
       abortRef.current = controller;
@@ -77,18 +80,21 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
       rateStatusRef.current("");
       setQueryStartedAt(Date.now());
       setBusy(true);
-      const hooksConfig = runtimeExtras.hooksConfig ?? settings.hooks ?? {};
+      setSpinnerMode("thinking");
       const onEvent = createQueryEventHandler({
         appendText: streaming.appendText,
         appendThinking: streaming.appendThinking,
         pushStatus: rateStatusRef.current,
         setStatusImmediate: setStatusState,
         onMessageComplete,
+        onToolPreview: (name, argsPreview) =>
+          streaming.setToolPreview(`${name} ${argsPreview}`.trim()),
+        onSpinnerMode: setSpinnerMode,
       });
       try {
         const result = await runQuery({
-          settings,
-          registry,
+          settings: overrides?.model ? { ...settings, model: overrides.model } : settings,
+          registry: filterToolRegistry(registry, overrides?.allowedTools ?? []),
           messages: nextMessages,
           permissionContext,
           signal: controller.signal,
@@ -98,7 +104,6 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
         });
         onComplete(result.messages);
         clearStream();
-        await runHookEvent(hooksConfig, { event: "Stop", cwd: getCwd() });
       } catch (error) {
         clearStream();
         const message = controller.signal.aborted
@@ -110,14 +115,14 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
         if (!controller.signal.aborted) {
           onErrorNotice?.(message);
         }
-        await runHookEvent(hooksConfig, { event: "Stop", cwd: getCwd() });
       } finally {
         abortRef.current = null;
         setBusy(false);
         setQueryStartedAt(null);
+        clearRunningTools();
       }
     },
-    [clearStream, registry, streaming.appendText, streaming.appendThinking],
+    [clearStream, registry, streaming.appendText, streaming.appendThinking, streaming.setToolPreview],
   );
 
   return {
@@ -126,6 +131,8 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
     isActive: busy || preparing,
     streamingText: streaming.streamingText,
     thinkingText: streaming.thinkingText,
+    toolPreview: streaming.toolPreview,
+    spinnerMode,
     status,
     queuedInputs,
     queryStartedAt,

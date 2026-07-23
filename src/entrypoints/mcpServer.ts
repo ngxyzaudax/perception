@@ -10,7 +10,14 @@ export const runMcpServer = async (): Promise<void> => {
   const settings = await loadSettings();
   const registry = createToolRegistry();
   const server = new McpServer({ name: "perception", version: getPackageVersion() });
-  const permissionContext = createPermissionContext("bypassPermissions", settings.alwaysAllowRules);
+  const permissionContext = createPermissionContext({
+    mode: "bypassPermissions",
+    alwaysAllowRules: settings.alwaysAllowRules,
+    denyRules: settings.denyRules,
+    askRules: settings.askRules,
+    allowedDomains: settings.allowedDomains,
+    additionalDirectories: settings.additionalDirectories,
+  });
 
   for (const tool of Object.values(registry)) {
     registerMcpTool(server, tool, settings, permissionContext);

@@ -10,6 +10,7 @@ type ToolMessageProps = {
   content: string;
   display?: ToolMessageDisplay;
   isError?: boolean;
+  collapsed?: boolean;
 };
 
 export const ToolMessage = ({
@@ -18,10 +19,20 @@ export const ToolMessage = ({
   content,
   display,
   isError,
+  collapsed,
 }: ToolMessageProps): React.ReactElement => {
   const compact = compactToolOutput(content, 6);
   const bulletColor = isError ? colors.error : colors.tool;
   const bullet = isError ? symbols.cross : symbols.bullet;
+  if (collapsed) {
+    return (
+      <Box paddingLeft={2}>
+        <Text color={colors.dim}>{symbols.branch} </Text>
+        <Text color={bulletColor}>{name}</Text>
+        {summary ? <Text dimColor>({summary})</Text> : null}
+      </Box>
+    );
+  }
   return (
     <Box flexDirection="column" marginTop={1}>
       <Text>

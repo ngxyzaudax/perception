@@ -33,6 +33,8 @@ export type QueryEvent =
   | { type: "message_complete"; message: ChatMessage }
   | { type: "tool_start"; name: string; input: unknown }
   | { type: "tool_end"; name: string; output: string; isError: boolean }
+  | { type: "tool_call_delta"; name: string; argsPreview: string }
+  | { type: "tool_progress"; name: string; elapsedMs: number }
   | { type: "permission_request"; toolName: string; summary: string }
   | { type: "done" }
   | { type: "status"; message: string }

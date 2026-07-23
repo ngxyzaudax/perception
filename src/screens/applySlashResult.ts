@@ -18,7 +18,10 @@ export type SlashResultDeps = {
   setLiveSettings: (settings: Settings) => void;
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
   updatePermissionMode: (mode: PermissionMode) => void;
-  submitQuery: (messages: import("../types/messages.js").ChatMessage[]) => Promise<void>;
+  submitQuery: (
+    messages: import("../types/messages.js").ChatMessage[],
+    overrides?: import("./replQueryTypes.js").QueryOverrides,
+  ) => Promise<void>;
   onExit: () => void;
   session: SessionController;
 };
@@ -103,7 +106,15 @@ export const applySlashResult = async (
     );
     return true;
   }
-  if (result.type === "skill" || result.type === "query") {
+  if (result.type === "skill") {
+    deps.setDisplayMessages((current) => syncChatMessages(current, result.messages));
+    await deps.submitQuery(result.messages, {
+      model: result.skill?.model,
+      allowedTools: result.skill?.allowedTools,
+    });
+    return true;
+  }
+  if (result.type === "query") {
     deps.setDisplayMessages((current) => syncChatMessages(current, result.messages));
     await deps.submitQuery(result.messages);
     return true;

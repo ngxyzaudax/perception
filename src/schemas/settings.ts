@@ -18,7 +18,12 @@ export const settingsSchema = z.object({
     .enum(["default", "plan", "bypassPermissions"])
     .default("default"),
   alwaysAllowRules: z.array(z.string()).default([]),
+  denyRules: z.array(z.string()).default([]),
+  askRules: z.array(z.string()).default([]),
+  allowedDomains: z.array(z.string()).default([]),
+  additionalDirectories: z.array(z.string()).default([]),
   webSearchUrls: z.array(z.string().url()).default([...defaultSearxMirrors]),
+  memoryExtraction: z.boolean().default(false),
   hooks: hooksConfigSchema.optional().default({}),
   lspServers: z.record(lspServerSchema).optional().default({}),
 });

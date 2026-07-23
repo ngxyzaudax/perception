@@ -9,6 +9,9 @@ const inputSchema = z.object({
   tail_lines: z.number().int().positive().optional().describe("Number of lines to return"),
 });
 
+const DEFAULT_TAIL_LINES = 200;
+const MAX_OUTPUT_CHARS = 50000;
+
 export const TaskOutputTool = buildTool({
   name: "TaskOutput",
   description: "Read output from a background shell task or agent transcript",
@@ -28,19 +31,21 @@ export const TaskOutputTool = buildTool({
         output = agent.resultText ?? "";
       }
       const lines = output.split("\n");
-      const tail = input.tail_lines ?? lines.length;
+      const tail = Math.min(input.tail_lines ?? DEFAULT_TAIL_LINES, DEFAULT_TAIL_LINES);
       const isolation = agent.isolated
         ? [
             `worktree: ${agent.cwd ?? "-"}`,
             `branch: ${agent.worktreeBranch ?? "-"}`,
           ]
         : [];
-      return [
-        `agent: ${agent.id}${agent.name ? ` (${agent.name})` : ""}`,
-        `status: ${agent.status}`,
-        ...isolation,
-        lines.slice(-tail).join("\n"),
-      ].join("\n");
+      return capOutput(
+        [
+          `agent: ${agent.id}${agent.name ? ` (${agent.name})` : ""}`,
+          `status: ${agent.status}`,
+          ...isolation,
+          lines.slice(-tail).join("\n"),
+        ].join("\n"),
+      );
     }
     const task = getTask(input.task_id);
     if (!task) {
@@ -53,12 +58,19 @@ export const TaskOutputTool = buildTool({
       output = "";
     }
     const lines = output.split("\n");
-    const tail = input.tail_lines ?? lines.length;
-    return [
-      `task: ${task.id}`,
-      `status: ${task.status}`,
-      `exit: ${task.exitCode ?? "-"}`,
-      lines.slice(-tail).join("\n"),
-    ].join("\n");
+    const tail = Math.min(input.tail_lines ?? DEFAULT_TAIL_LINES, DEFAULT_TAIL_LINES);
+    return capOutput(
+      [
+        `task: ${task.id}`,
+        `status: ${task.status}`,
+        `exit: ${task.exitCode ?? "-"}`,
+        lines.slice(-tail).join("\n"),
+      ].join("\n"),
+    );
   },
 });
+
+const capOutput = (output: string): string =>
+  output.length <= MAX_OUTPUT_CHARS
+    ? output
+    : `${output.slice(0, MAX_OUTPUT_CHARS)}\n...[truncated ${output.length} chars]`;

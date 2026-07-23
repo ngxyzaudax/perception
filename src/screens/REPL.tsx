@@ -1,5 +1,7 @@
 import { useInput } from "ink";
 import { useEffect, useMemo } from "react";
+import { applyAutoRunToggle } from "./autoRunToggle.js";
+import { appendStatus } from "./displayState.js";
 import { ReplView } from "./ReplView.js";
 import { useAgentTasksPoll } from "./useAgentTasksPoll.js";
 import { useElapsedSeconds } from "./useElapsedSeconds.js";
@@ -54,6 +56,16 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
   }, [notifications, state.messages]);
 
   useInput((_input, key) => {
+    if (key.tab && key.shift) {
+      applyAutoRunToggle({
+        permissionMode: state.permissionMode,
+        liveSettings: state.liveSettings,
+        updatePermissionMode: state.updatePermissionMode,
+        appendStatusLine: (content, title) =>
+          state.setDisplayMessages((current) => appendStatus(current, content, title)),
+      });
+      return;
+    }
     if (key.escape && query.isActive) {
       query.abortQuery();
     }
@@ -83,6 +95,7 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
     messages: state.messages,
     skills: state.skills,
     hooksConfig: state.hooksConfig,
+    registry: state.registry,
     session: state.session,
     maxContextTokens: state.maxContextTokens,
     overlays,

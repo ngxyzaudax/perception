@@ -14,6 +14,7 @@ export const SleepTool = buildTool({
   description: "Wait for a duration without holding a shell process",
   inputSchema,
   isReadOnly: () => true,
+  isConcurrencySafe: () => false,
   summarize: (input) => `${input.duration_seconds}s`,
   call: async (input, context) => {
     const seconds = Math.min(Math.max(input.duration_seconds, 1), 600);

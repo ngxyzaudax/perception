@@ -1,3 +1,7 @@
+import { loadHooksConfig } from "../services/hooks/loadHooks.js";
+import { runHookEvent } from "../services/hooks/runHooks.js";
+import { getCwd } from "../utils/cwd.js";
+
 export type AgentNotification = {
   content: string;
   agentId: string;
@@ -10,6 +14,14 @@ let subscriber: ((notification: AgentNotification) => void) | null = null;
 export const enqueueNotification = (notification: AgentNotification): void => {
   pending.push(notification);
   subscriber?.(notification);
+  void loadHooksConfig().then((hooks) =>
+    runHookEvent(hooks, {
+      event: "Notification",
+      message: notification.content,
+      summary: notification.agentId,
+      cwd: getCwd(),
+    }),
+  );
 };
 
 export const drainNotifications = (): AgentNotification[] => {

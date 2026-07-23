@@ -10,8 +10,10 @@ import type { SessionController } from "./replSession.js";
 import type { OverlayController } from "./useOverlays.js";
 import type { ReplQueryController } from "./useReplQuery.js";
 import { createPermissionContext } from "../permissions/checkPermission.js";
+import type { ToolRegistry } from "../Tool.js";
 import { applySlashResult } from "./applySlashResult.js";
 import { appendChatMessage } from "./displayState.js";
+import type { QueryOverrides } from "./replQueryTypes.js";
 
 export type SubmitDeps = {
   liveSettings: Settings;
@@ -20,6 +22,7 @@ export type SubmitDeps = {
   messages: ChatMessage[];
   skills: SkillDefinition[];
   hooksConfig: HooksConfig;
+  registry: ToolRegistry;
   session: SessionController;
   maxContextTokens: number;
   overlays: OverlayController;
@@ -31,7 +34,7 @@ export type SubmitDeps = {
   setMaxContextTokens: (tokens: number) => void;
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
   updatePermissionMode: (mode: PermissionMode) => void;
-  submitQuery: (messages: ChatMessage[]) => Promise<void>;
+  submitQuery: (messages: ChatMessage[], overrides?: QueryOverrides) => Promise<void>;
   onExit: () => void;
 };
 
@@ -62,6 +65,7 @@ export const useReplSubmit = (deps: SubmitDeps) =>
           messages: deps.messages,
           skills: deps.skills,
           hooksConfig: deps.hooksConfig,
+          registry: deps.registry,
           session: deps.session,
           maxContextTokens: deps.maxContextTokens,
           onPermissionContextUpdate: (context) => {

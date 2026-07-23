@@ -10,6 +10,7 @@ import { UserMessage } from "./UserMessage.js";
 export const renderDisplayMessage = (
   message: DisplayMessage,
   index: number,
+  collapsed?: boolean,
 ): React.ReactElement | null => {
   if (isStatusMessage(message)) {
     return <StatusMessage key={`status-${index}`} content={message.content} title={message.title} />;
@@ -38,6 +39,7 @@ export const renderDisplayMessage = (
         content={message.content}
         display={message.display}
         isError={message.isError}
+        collapsed={collapsed}
       />
     );
   }

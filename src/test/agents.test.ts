@@ -131,7 +131,12 @@ describe("multi-agent lifecycle", () => {
       apiKey: "local",
       permissionMode: "default",
       alwaysAllowRules: [],
+      denyRules: [],
+      askRules: [],
+      allowedDomains: [],
+      additionalDirectories: [],
       webSearchUrls: [],
+      memoryExtraction: false,
       hooks: {},
       lspServers: {},
     };

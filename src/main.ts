@@ -17,6 +17,10 @@ const program = new Command()
     "Permission mode: default, plan, bypassPermissions",
   )
   .option("-p, --print <prompt>", "Run a single prompt headlessly and print the result")
+  .option(
+    "--output-format <format>",
+    "Print output format: text, json, stream-json",
+  )
   .action(async (options) => {
     const settings = await loadSettings();
     const merged: Settings = {
@@ -28,7 +32,10 @@ const program = new Command()
         settings.permissionMode,
     };
     if (options.print) {
-      process.exit(await runPrintMode(merged, options.print));
+      const { parseOutputFormat } = await import("./cli/printOutput.js");
+      process.exit(
+        await runPrintMode(merged, options.print, parseOutputFormat(options.outputFormat)),
+      );
     }
     const { launchRepl } = await import("./entrypoints/cli.js");
     await launchRepl(merged);

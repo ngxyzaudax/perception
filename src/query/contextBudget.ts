@@ -1,13 +1,18 @@
-import type { ChatMessage } from "../types/messages.js";
+import type { ChatMessage, QueryEvent } from "../types/messages.js";
+import { estimateMessageChars } from "../services/compact/autoCompact.js";
+import { calibratedCharsPerToken } from "../services/llm/tokenize.js";
 import { shrinkOversizedToolMessages } from "./toolOutputLimits.js";
 
-const CHARS_PER_TOKEN = 4;
 const SEND_BUDGET_RATIO = 0.9;
 
-export const estimateTokens = (text: string): number => Math.ceil(text.length / CHARS_PER_TOKEN);
+export const estimateTokens = (text: string): number =>
+  Math.ceil(text.length / calibratedCharsPerToken());
+
+const messageTokens = (message: ChatMessage): number =>
+  Math.ceil(estimateMessageChars(message) / calibratedCharsPerToken());
 
 const totalTokens = (messages: ChatMessage[]): number =>
-  messages.reduce((sum, message) => sum + estimateTokens(message.content ?? ""), 0);
+  messages.reduce((sum, message) => sum + messageTokens(message), 0);
 
 export const sendBudget = (maxContextTokens: number): number =>
   Math.floor(maxContextTokens * SEND_BUDGET_RATIO);
@@ -30,7 +35,7 @@ const userBoundaryStarts = (body: ChatMessage[]): number[] => {
 const suffixTokens = (body: ChatMessage[]): number[] => {
   const suffix = new Array<number>(body.length + 1).fill(0);
   for (let index = body.length - 1; index >= 0; index -= 1) {
-    suffix[index] = suffix[index + 1]! + estimateTokens(body[index]!.content ?? "");
+    suffix[index] = suffix[index + 1]! + messageTokens(body[index]!);
   }
   return suffix;
 };
@@ -65,3 +70,23 @@ export const recoverFromOverflow = (
   messages: ChatMessage[],
   maxContextTokens: number,
 ): ChatMessage[] => enforceContextBudget(shrinkOversizedToolMessages(messages), maxContextTokens);
+
+export const enforceWorkingBudget = (input: {
+  working: ChatMessage[];
+  maxContextTokens: number;
+  onEvent: (event: QueryEvent) => void;
+}): void => {
+  if (isWithinSendBudget(input.working, input.maxContextTokens)) {
+    return;
+  }
+  const bounded = recoverFromOverflow(input.working, input.maxContextTokens);
+  const droppedCount = input.working.length - bounded.length;
+  input.onEvent({
+    type: "status",
+    message:
+      droppedCount > 0
+        ? `Trimmed ${droppedCount} oldest messages and shrank tool outputs to fit the context window.`
+        : "Shrank oversized tool outputs to fit the context window.",
+  });
+  input.working.splice(0, input.working.length, ...bounded);
+};

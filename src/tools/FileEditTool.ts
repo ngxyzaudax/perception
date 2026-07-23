@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, stat } from "node:fs/promises";
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
 import { isPlanFilePath } from "../services/plans/planFiles.js";
@@ -8,6 +8,8 @@ import {
   touchFileRead,
 } from "../state/readFileState.js";
 import { expandPath } from "../utils/path.js";
+
+const MAX_EDIT_FILE_BYTES = 10 * 1024 * 1024;
 
 const inputSchema = z.object({
   file_path: z.string().describe("Absolute or relative path to the file"),
@@ -39,7 +41,14 @@ export const FileEditTool = buildTool({
     return { oldContent: content, newContent: updated };
   },
   call: async (input, context) => {
+    if (input.old_string === input.new_string) {
+      return "No changes: old_string and new_string are identical.";
+    }
     const path = expandPath(input.file_path, context.cwd);
+    const fileStat = await stat(path);
+    if (fileStat.size > MAX_EDIT_FILE_BYTES) {
+      return `File too large to edit (${fileStat.size} bytes).`;
+    }
     const scope = resolveFileScope(context.runtime?.agentScope);
     const freshness = await checkFileFreshness(path, scope);
     if (freshness) {

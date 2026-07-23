@@ -25,7 +25,14 @@ export const useReplState = (initialSettings: Settings) => {
   const [coordinatorMode, setCoordinatorMode] = useState(false);
   const session = useSessionController();
   const permissionContextRef = useRef(
-    createPermissionContext(initialSettings.permissionMode, initialSettings.alwaysAllowRules),
+    createPermissionContext({
+      mode: initialSettings.permissionMode,
+      alwaysAllowRules: initialSettings.alwaysAllowRules,
+      denyRules: initialSettings.denyRules,
+      askRules: initialSettings.askRules,
+      allowedDomains: initialSettings.allowedDomains,
+      additionalDirectories: initialSettings.additionalDirectories,
+    }),
   );
   const messages = useMemo(() => extractChatMessages(displayMessages), [displayMessages]);
   const updatePermissionMode = useCallback((mode: PermissionMode): void => {

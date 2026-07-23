@@ -7,8 +7,7 @@ import {
 } from "../services/checkpoints/shadowRepo.js";
 import { listTrackedCheckpoints } from "../services/checkpoints/checkpointState.js";
 import type { ChatMessage } from "../types/messages.js";
-import { parseSlashCommand } from "./replCommands.js";
-import { runBuiltInSlashCommand } from "./slashBuiltInCommands.js";
+import { findCommand } from "../commands/registry.js";
 import type { SlashActionContext, SlashActionResult } from "./slashActionTypes.js";
 import { runUserPromptAction } from "./slashUserPrompt.js";
 
@@ -17,10 +16,9 @@ export type { SlashActionContext, SlashActionResult } from "./slashActionTypes.j
 export const executeSlashAction = async (
   context: SlashActionContext,
 ): Promise<SlashActionResult> => {
-  const command = parseSlashCommand(context.input, context.permissionMode, context.settings);
-  const builtIn = await runBuiltInSlashCommand(command, context);
-  if (builtIn) {
-    return builtIn;
+  const command = findCommand(context.input);
+  if (command) {
+    return command.execute(context);
   }
   return runUserPromptAction(context);
 };

@@ -2,6 +2,12 @@ import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { Settings } from "../schemas/settings.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import type { ChatMessage } from "../types/messages.js";
+import type { SpinnerMode } from "./spinnerMode.js";
+
+export type QueryOverrides = {
+  model?: string;
+  allowedTools?: string[];
+};
 
 export type ReplQueryController = {
   busy: boolean;
@@ -9,6 +15,8 @@ export type ReplQueryController = {
   isActive: boolean;
   streamingText: string;
   thinkingText: string;
+  toolPreview: string;
+  spinnerMode: SpinnerMode;
   status: string;
   queuedInputs: string[];
   queryStartedAt: number | null;
@@ -27,5 +35,6 @@ export type ReplQueryController = {
     onMessageComplete?: (message: ChatMessage) => void,
     onErrorNotice?: (message: string) => void,
     systemPromptOverride?: string,
+    overrides?: QueryOverrides,
   ) => Promise<void>;
 };

@@ -1,8 +1,8 @@
 import { Box, Text } from "ink";
 import { formatDuration } from "../../ui/formatDuration.js";
+import { spinnerVerb } from "../../screens/spinnerMode.js";
+import type { SpinnerMode } from "../../screens/spinnerMode.js";
 import { Spinner } from "./Spinner.js";
-
-const activityVerbs = ["Thinking", "Working", "Processing"] as const;
 
 type ActivityLineProps = {
   isActive: boolean;
@@ -10,6 +10,7 @@ type ActivityLineProps = {
   completionTokens: number;
   status: string;
   queuedCount: number;
+  mode?: SpinnerMode;
 };
 
 export const ActivityLine = ({
@@ -18,11 +19,12 @@ export const ActivityLine = ({
   completionTokens,
   status,
   queuedCount,
+  mode = "thinking",
 }: ActivityLineProps): React.ReactElement | null => {
   if (!isActive) {
     return null;
   }
-  const verb = activityVerbs[Math.floor(elapsedSeconds / 3) % activityVerbs.length];
+  const verb = spinnerVerb(mode);
   return (
     <Box marginTop={1}>
       <Spinner

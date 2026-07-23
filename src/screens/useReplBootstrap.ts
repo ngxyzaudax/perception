@@ -2,7 +2,12 @@ import { useEffect } from "react";
 import { runHookEvent } from "../services/hooks/runHooks.js";
 import { loadHooksConfig } from "../services/hooks/loadHooks.js";
 import type { HooksConfig } from "../services/hooks/hookSchema.js";
-import { connectMcpTools, closeMcpConnections, formatMcpStatus } from "../services/mcp/mcpManager.js";
+import {
+  connectMcpTools,
+  closeMcpConnections,
+  formatMcpStatus,
+  setMcpToolsChangedHandler,
+} from "../services/mcp/mcpManager.js";
 import { createLlmClient, resolveModel } from "../services/llm/client.js";
 import type { Settings } from "../schemas/settings.js";
 import { refreshAgents } from "../tools/AgentTool.js";
@@ -61,6 +66,7 @@ export const useReplBootstrap = ({
         setDisplayMessages((current) => appendStatus(current, started.context ?? "", "Session"));
       }
     });
+    setMcpToolsChangedHandler((tools) => setRegistry(createToolRegistry(tools)));
     void connectMcpTools().then(({ tools, statuses }) => {
       setRegistry(createToolRegistry(tools));
       if (statuses.length > 0) {
@@ -70,6 +76,7 @@ export const useReplBootstrap = ({
     return () => {
       stopCronScheduler();
       void shutdownLspClients();
+      setMcpToolsChangedHandler(null);
       void closeMcpConnections();
     };
   }, [liveSettings, session, setDisplayMessages, setHooksConfig, setMaxContextTokens, setModel, setRegistry, setSkills]);

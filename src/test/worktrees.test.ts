@@ -105,7 +105,12 @@ describe("cwd threading", () => {
       apiKey: "local",
       permissionMode: "bypassPermissions",
       alwaysAllowRules: [],
+      denyRules: [],
+      askRules: [],
+      allowedDomains: [],
+      additionalDirectories: [],
       webSearchUrls: [],
+      memoryExtraction: false,
       hooks: {},
       lspServers: {},
     };

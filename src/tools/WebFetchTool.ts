@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
+import { domainFromUrl, isDomainAllowed, matchesWebFetchAllowRule } from "../permissions/domains.js";
 import { htmlToText } from "../utils/html.js";
 
 const inputSchema = z.object({
@@ -17,7 +18,21 @@ export const WebFetchTool = buildTool({
   description: "Fetch a URL and return readable text content",
   inputSchema,
   isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  needsExplicitPermission: () => true,
   summarize: (input) => input.url,
+  checkPermissions: async (input, context) => {
+    const domain = domainFromUrl(input.url);
+    if (!domain) {
+      return { granted: false, reason: "invalid URL" };
+    }
+    const allowed = context.runtime?.settings.allowedDomains ?? [];
+    const rules = context.runtime?.permissionContext.alwaysAllowRules ?? [];
+    if (isDomainAllowed(domain, allowed) || matchesWebFetchAllowRule(rules, input.url)) {
+      return { granted: true };
+    }
+    return null;
+  },
   call: async (input, context) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);

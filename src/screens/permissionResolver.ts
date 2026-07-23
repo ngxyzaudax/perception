@@ -7,6 +7,7 @@ export type PendingPermission = {
   toolName: string;
   summary: string;
   preview?: DiffPreview;
+  suggestedPersistRule?: string;
   resolve: (result: PermissionResult) => void;
 };
 
@@ -18,6 +19,7 @@ export const createPermissionResolver =
     toolName: string;
     summary: string;
     preview?: DiffPreview;
+    suggestedPersistRule?: string;
   }): Promise<PermissionResult> =>
     new Promise((resolve) => {
       setQueue((current) => [
@@ -26,6 +28,7 @@ export const createPermissionResolver =
           toolName: request.toolName,
           summary: request.summary,
           preview: request.preview,
+          suggestedPersistRule: request.suggestedPersistRule,
           resolve,
         },
       ]);

@@ -8,6 +8,9 @@ export type SkillDefinition = {
   body: string;
   userInvocable: boolean;
   disableModelInvocation: boolean;
+  allowedTools: string[];
+  model?: string;
+  runAsAgent: boolean;
 };
 
 export const parseSkillFile = (
@@ -29,6 +32,9 @@ export const parseSkillFile = (
       parsed.frontmatter["disable-model-invocation"],
       false,
     ),
+    allowedTools: parseToolList(parsed.frontmatter["allowed-tools"]),
+    model: parsed.frontmatter.model,
+    runAsAgent: parseBoolean(parsed.frontmatter.agent, false),
   };
 };
 
@@ -37,4 +43,14 @@ const parseBoolean = (value: string | undefined, fallback: boolean): boolean => 
     return fallback;
   }
   return value === "true";
+};
+
+const parseToolList = (value: string | undefined): string[] => {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 };

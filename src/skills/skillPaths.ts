@@ -1,6 +1,10 @@
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { perceptionHome } from "../services/sessions/sessionPaths.js";
 import { getCwd } from "../utils/cwd.js";
+
+export const bundledSkillsRoot = (): string =>
+  join(dirname(fileURLToPath(import.meta.url)), "bundled");
 
 export const globalSkillsRoot = (): string => join(perceptionHome(), "skills");
 

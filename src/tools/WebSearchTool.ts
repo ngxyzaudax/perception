@@ -12,7 +12,20 @@ export const WebSearchTool = buildTool({
   description: "Search the web via configured SearXNG instance (JSON API)",
   inputSchema,
   isReadOnly: () => true,
+  isConcurrencySafe: () => true,
+  needsExplicitPermission: () => true,
   summarize: (input) => input.search_term,
+  checkPermissions: async (_input, context) => {
+    const mirrors = context.runtime?.settings.webSearchUrls ?? [];
+    if (mirrors.length === 0) {
+      return null;
+    }
+    const rules = context.runtime?.permissionContext.alwaysAllowRules ?? [];
+    if (rules.some((rule) => rule === "WebSearch" || rule.startsWith("WebSearch("))) {
+      return { granted: true };
+    }
+    return null;
+  },
   call: async (input, context) => {
     const limit = Math.min(input.max_results ?? 5, 10);
     const urls = context.runtime?.settings.webSearchUrls ?? [];

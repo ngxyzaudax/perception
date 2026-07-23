@@ -3,12 +3,37 @@ import { compactConversation } from "../services/compact/compactConversation.js"
 import { createCheckpoint } from "../services/checkpoints/shadowRepo.js";
 import { recordCheckpoint } from "../services/checkpoints/checkpointState.js";
 import { expandSkill, matchSkillCommand } from "../skills/loadSkills.js";
+import { startAgent } from "../services/agents/agentLifecycle.js";
 import { getUsage } from "../state/usage.js";
 import type { ChatMessage } from "../types/messages.js";
 import { expandFileMentions } from "../utils/fileMentions.js";
 import { getCwd } from "../utils/cwd.js";
 import { runHookEvent } from "../services/hooks/runHooks.js";
 import type { SlashActionContext, SlashActionResult } from "./slashActionTypes.js";
+
+const startSkillAgent = async (
+  context: SlashActionContext,
+  skillName: string,
+  prompt: string,
+  model?: string,
+): Promise<SlashActionResult> => {
+  const message = await startAgent({
+    description: `skill: ${skillName}`,
+    prompt,
+    runtime: {
+      settings: context.settings,
+      registry: context.registry,
+      permissionContext: context.permissionContext,
+      onEvent: () => undefined,
+      sessionId: context.session.getSessionId(),
+      hooksConfig: context.hooksConfig,
+    },
+    signal: new AbortController().signal,
+    model,
+    runInBackground: true,
+  });
+  return { type: "status", content: message, title: "Skill" };
+};
 
 const scheduleCheckpoint = (label: string, messageCount: number): void => {
   void createCheckpoint(label)
@@ -26,8 +51,11 @@ export const runUserPromptAction = async (
   const skillMatch = matchSkillCommand(context.input, context.skills);
   if (skillMatch) {
     const prompt = `[Skill: ${skillMatch.skill.name}]\n${expandSkill(skillMatch.skill, skillMatch.args)}`;
+    if (skillMatch.skill.runAsAgent) {
+      return startSkillAgent(context, skillMatch.skill.name, prompt, skillMatch.skill.model);
+    }
     const nextMessages: ChatMessage[] = [...context.messages, { role: "user", content: prompt }];
-    return { type: "skill", prompt, messages: nextMessages };
+    return { type: "skill", prompt, messages: nextMessages, skill: skillMatch.skill };
   }
   const promptHook = await runHookEvent(context.hooksConfig, {
     event: "UserPromptSubmit",

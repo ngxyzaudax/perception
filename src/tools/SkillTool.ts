@@ -2,6 +2,7 @@ import { z } from "zod";
 import { buildTool } from "../Tool.js";
 import type { SkillDefinition } from "../skills/skillSchema.js";
 import { expandSkill, getSkillByName, loadSkills } from "../skills/loadSkills.js";
+import { registerSkillCommands } from "../commands/skillRegistry.js";
 
 const inputSchema = z.object({
   skill: z.string().describe("Skill command name"),
@@ -12,6 +13,7 @@ let cachedSkills: SkillDefinition[] = [];
 
 export const refreshSkills = async (): Promise<SkillDefinition[]> => {
   cachedSkills = await loadSkills();
+  registerSkillCommands(cachedSkills);
   return cachedSkills;
 };
 

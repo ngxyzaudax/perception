@@ -32,6 +32,8 @@ export type ToolDefinition<TInput extends z.ZodTypeAny> = {
   description: string;
   inputSchema: TInput;
   isReadOnly: (input: z.infer<TInput>) => boolean;
+  isConcurrencySafe?: (input: z.infer<TInput>) => boolean;
+  needsExplicitPermission?: (input: z.infer<TInput>) => boolean;
   summarize: (input: z.infer<TInput>) => string;
   call: (input: z.infer<TInput>, context: ToolUseContext) => Promise<string>;
   getPreview?: (
@@ -48,14 +50,41 @@ export type AnyToolDefinition = ToolDefinition<z.ZodTypeAny>;
 
 export type ToolRegistry = Record<string, AnyToolDefinition>;
 
+type ToolDefinitionInput<TInput extends z.ZodTypeAny> = Omit<
+  ToolDefinition<TInput>,
+  "isReadOnly" | "isConcurrencySafe"
+> & {
+  isReadOnly?: (input: z.infer<TInput>) => boolean;
+  isConcurrencySafe?: (input: z.infer<TInput>) => boolean;
+};
+
 export const buildTool = <TInput extends z.ZodTypeAny>(
-  definition: ToolDefinition<TInput>,
-): ToolDefinition<TInput> => definition;
+  definition: ToolDefinitionInput<TInput>,
+): ToolDefinition<TInput> => {
+  const isReadOnly = definition.isReadOnly ?? (() => false);
+  return {
+    ...definition,
+    isReadOnly,
+    isConcurrencySafe: definition.isConcurrencySafe ?? isReadOnly,
+  };
+};
 
 export const getTool = (
   registry: ToolRegistry,
   name: string,
 ): AnyToolDefinition | undefined => registry[name];
+
+export const filterToolRegistry = (
+  registry: ToolRegistry,
+  allowedTools: string[],
+): ToolRegistry => {
+  if (allowedTools.length === 0) {
+    return registry;
+  }
+  return Object.fromEntries(
+    Object.entries(registry).filter(([name]) => allowedTools.includes(name)),
+  );
+};
 
 export const listTools = (registry: ToolRegistry): AnyToolDefinition[] =>
   Object.values(registry);

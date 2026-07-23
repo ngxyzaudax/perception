@@ -1,6 +1,7 @@
 export type StreamingSnapshot = {
   text: string;
   thinking: string;
+  toolPreview: string;
 };
 
 export type StreamingDisplay = {
@@ -8,6 +9,7 @@ export type StreamingDisplay = {
   getSnapshot: () => StreamingSnapshot;
   appendText: (delta: string) => void;
   appendThinking: (delta: string) => void;
+  setToolPreview: (preview: string) => void;
   clear: () => void;
 };
 
@@ -16,7 +18,8 @@ const FLUSH_MS = 33;
 export const createStreamingDisplay = (): StreamingDisplay => {
   let text = "";
   let thinking = "";
-  let snapshot: StreamingSnapshot = { text, thinking };
+  let toolPreview = "";
+  let snapshot: StreamingSnapshot = { text, thinking, toolPreview };
   const listeners = new Set<() => void>();
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -25,10 +28,14 @@ export const createStreamingDisplay = (): StreamingDisplay => {
   };
 
   const syncSnapshot = (): void => {
-    if (snapshot.text === text && snapshot.thinking === thinking) {
+    if (
+      snapshot.text === text &&
+      snapshot.thinking === thinking &&
+      snapshot.toolPreview === toolPreview
+    ) {
       return;
     }
-    snapshot = { text, thinking };
+    snapshot = { text, thinking, toolPreview };
   };
 
   const flushNow = (): void => {
@@ -69,9 +76,14 @@ export const createStreamingDisplay = (): StreamingDisplay => {
       thinking += delta;
       scheduleNotify();
     },
+    setToolPreview: (preview) => {
+      toolPreview = preview;
+      scheduleNotify();
+    },
     clear: () => {
       text = "";
       thinking = "";
+      toolPreview = "";
       flushNow();
     },
   };

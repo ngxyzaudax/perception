@@ -2,6 +2,7 @@ import { createPermissionContext } from "../permissions/checkPermission.js";
 import type { Settings } from "../schemas/settings.js";
 import type { SkillDefinition } from "../skills/skillSchema.js";
 import type { HooksConfig } from "../services/hooks/hookSchema.js";
+import type { ToolRegistry } from "../Tool.js";
 import type { ChatMessage } from "../types/messages.js";
 import type { PermissionMode } from "../types/permissions.js";
 import type { SessionController } from "./replSession.js";
@@ -19,7 +20,7 @@ export type SlashActionResult =
   | { type: "approve_plan" }
   | { type: "set_messages"; messages: ChatMessage[] }
   | { type: "query"; messages: ChatMessage[] }
-  | { type: "skill"; prompt: string; messages: ChatMessage[] }
+  | { type: "skill"; prompt: string; messages: ChatMessage[]; skill?: SkillDefinition }
   | { type: "noop" };
 
 export type SlashActionContext = {
@@ -31,6 +32,7 @@ export type SlashActionContext = {
   messages: ChatMessage[];
   skills: SkillDefinition[];
   hooksConfig: HooksConfig;
+  registry: ToolRegistry;
   session: SessionController;
   maxContextTokens: number;
   onPermissionContextUpdate: (context: ReturnType<typeof createPermissionContext>) => void;

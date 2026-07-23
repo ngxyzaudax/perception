@@ -18,10 +18,10 @@ describe("shouldCompactWorking", () => {
   });
 
   it("triggers on reported prompt tokens above threshold", () => {
-    assert.ok(shouldCompactWorking(249500, [userMessage(100)], 262144));
+    assert.ok(shouldCompactWorking(240000, [userMessage(100)], 262144));
   });
 
   it("triggers on estimated history size when prompt tokens are stale", () => {
-    assert.ok(shouldCompactWorking(0, [userMessage(900000)], 262144));
+    assert.ok(shouldCompactWorking(0, [userMessage(1_000_000)], 262144));
   });
 });

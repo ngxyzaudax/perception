@@ -5,41 +5,87 @@ import { anyRuleMatches } from "./rules.js";
 export type PermissionContext = {
   mode: PermissionMode;
   alwaysAllowRules: string[];
+  denyRules: string[];
+  askRules: string[];
+  allowedDomains: string[];
+  additionalDirectories: string[];
   requestPermission?: (request: Omit<PermissionRequest, "resolve">) => Promise<PermissionResult>;
   planApproved: boolean;
 };
 
+export type PermissionContextInput = {
+  mode: PermissionMode;
+  alwaysAllowRules?: string[];
+  denyRules?: string[];
+  askRules?: string[];
+  allowedDomains?: string[];
+  additionalDirectories?: string[];
+  requestPermission?: PermissionContext["requestPermission"];
+};
+
 export const createPermissionContext = (
-  mode: PermissionMode,
+  modeOrInput: PermissionMode | PermissionContextInput,
   alwaysAllowRules: string[] = [],
   requestPermission?: PermissionContext["requestPermission"],
-): PermissionContext => ({
-  mode,
-  alwaysAllowRules: [...alwaysAllowRules],
-  requestPermission,
-  planApproved: false,
-});
+): PermissionContext => {
+  if (typeof modeOrInput === "string") {
+    return {
+      mode: modeOrInput,
+      alwaysAllowRules: [...alwaysAllowRules],
+      denyRules: [],
+      askRules: [],
+      allowedDomains: [],
+      additionalDirectories: [],
+      requestPermission,
+      planApproved: false,
+    };
+  }
+  return {
+    mode: modeOrInput.mode,
+    alwaysAllowRules: [...(modeOrInput.alwaysAllowRules ?? [])],
+    denyRules: [...(modeOrInput.denyRules ?? [])],
+    askRules: [...(modeOrInput.askRules ?? [])],
+    allowedDomains: [...(modeOrInput.allowedDomains ?? [])],
+    additionalDirectories: [...(modeOrInput.additionalDirectories ?? [])],
+    requestPermission: modeOrInput.requestPermission,
+    planApproved: false,
+  };
+};
 
 export const checkToolPermission = async (
   context: PermissionContext,
   toolName: string,
   summary: string,
   isReadOnly: boolean,
-  options?: { planFileEdit?: boolean },
+  options?: {
+    planFileEdit?: boolean;
+    needsExplicitPermission?: boolean;
+    forceAsk?: boolean;
+    pathDenied?: string;
+  },
 ): Promise<PermissionResult> => {
-  if (context.mode === "bypassPermissions") {
+  if (anyRuleMatches(context.denyRules, toolName, summary)) {
+    return { granted: false, reason: `Denied by rule for ${toolName}` };
+  }
+  if (options?.pathDenied) {
+    return { granted: false, reason: options.pathDenied };
+  }
+  const forceAsk =
+    options?.forceAsk === true || anyRuleMatches(context.askRules, toolName, summary);
+  const needsExplicit = options?.needsExplicitPermission === true;
+  if (!forceAsk && context.mode === "bypassPermissions") {
     return { granted: true };
   }
-  if (isReadOnly) {
+  if (!forceAsk && isReadOnly && !needsExplicit) {
     return { granted: true };
   }
-  if (options?.planFileEdit && context.mode === "plan") {
+  if (!forceAsk && options?.planFileEdit && context.mode === "plan") {
     return { granted: true };
   }
-  if (anyRuleMatches(context.alwaysAllowRules, toolName, summary)) {
+  if (!forceAsk && !needsExplicit && anyRuleMatches(context.alwaysAllowRules, toolName, summary)) {
     return { granted: true };
   }
-  if (context.mode === "plan" && context.planApproved) {
+  if (!forceAsk && context.mode === "plan" && context.planApproved) {
     return { granted: true };
   }
   if (!context.requestPermission) {

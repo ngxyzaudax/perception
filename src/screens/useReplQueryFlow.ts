@@ -5,10 +5,12 @@ import type { PermissionMode } from "../types/permissions.js";
 import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import { titleSession } from "../services/sessions/titleSession.js";
+import { extractProjectMemory } from "../services/memory/extractProjectMemory.js";
 import { setActiveSessionId } from "../state/backgroundTasks.js";
 import { appendChatMessage, appendStatus, reconcileChatMessages } from "./displayState.js";
 import { resolveCoordinatorPrompt } from "./slashCommandActions.js";
 import type { ReplQueryController } from "./useReplQuery.js";
+import type { QueryOverrides } from "./replQueryTypes.js";
 import type { SessionController } from "./replSession.js";
 import type { DisplayMessage } from "../types/displayMessages.js";
 import { expandFileMentions } from "../utils/fileMentions.js";
@@ -39,7 +41,9 @@ const scheduleCheckpoint = (label: string, messageCount: number): void => {
     .catch(() => {});
 };
 
-export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]) => Promise<void>) => {
+export const useReplQueryFlow = (
+  args: QueryFlowArgs,
+): ((messages: ChatMessage[], overrides?: QueryOverrides) => Promise<void>) => {
   const submitRef = useRef<(messages: ChatMessage[]) => Promise<void>>(async () => {});
 
   const handleMessageComplete = useCallback(
@@ -72,7 +76,7 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
   );
 
   const submitQuery = useCallback(
-    async (nextMessages: ChatMessage[]): Promise<void> => {
+    async (nextMessages: ChatMessage[], overrides?: QueryOverrides): Promise<void> => {
       setActiveSessionId(args.session.getSessionId());
       const systemPromptOverride = await resolveCoordinatorPrompt(args.coordinatorMode);
       await args.query.runUserQuery(
@@ -90,6 +94,7 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
         (finalMessages) => {
           args.setDisplayMessages((current) => reconcileChatMessages(current, finalMessages));
           args.session.persistSession(finalMessages);
+          void extractProjectMemory(args.liveSettings, finalMessages).catch(() => undefined);
           const userTurns = finalMessages.filter((message) => message.role === "user").length;
           if (userTurns >= 2) {
             void titleSession(args.liveSettings, finalMessages)
@@ -111,6 +116,7 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
           args.setDisplayMessages((current) => appendStatus(current, message, "Error"));
         },
         systemPromptOverride,
+        overrides,
       );
     },
     [args, drainFollowUp, handleMessageComplete],

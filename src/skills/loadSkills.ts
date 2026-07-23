@@ -2,16 +2,14 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { SkillDefinition } from "./skillSchema.js";
 import { parseSkillFile } from "./skillSchema.js";
-import { globalSkillsRoot, projectSkillsRoot, skillFilePath } from "./skillPaths.js";
+import { bundledSkillsRoot, globalSkillsRoot, projectSkillsRoot, skillFilePath } from "./skillPaths.js";
 
 export const loadSkills = async (): Promise<SkillDefinition[]> => {
+  const bundled = await loadSkillsFromRoot(bundledSkillsRoot());
   const global = await loadSkillsFromRoot(globalSkillsRoot());
   const project = await loadSkillsFromRoot(projectSkillsRoot());
   const merged = new Map<string, SkillDefinition>();
-  for (const skill of global) {
-    merged.set(skill.commandName, skill);
-  }
-  for (const skill of project) {
+  for (const skill of [...bundled, ...global, ...project]) {
     merged.set(skill.commandName, skill);
   }
   return [...merged.values()].sort((left, right) =>

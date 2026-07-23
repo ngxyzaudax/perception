@@ -23,13 +23,32 @@ const repairAssistantArguments = (message: ChatMessage): ChatMessage => {
   return changed ? { ...message, toolCalls: repaired } : message;
 };
 
-const syntheticToolResult = (call: ToolCall): ToolMessage => ({
+export const syntheticToolResult = (
+  call: ToolCall,
+  content: string = "Tool call was not completed; recovered during history sanitization.",
+): ToolMessage => ({
   role: "tool",
   toolCallId: call.id,
   name: call.name,
-  content: "Tool call was not completed; recovered during history sanitization.",
+  content,
   isError: true,
 });
+
+export const missingToolResults = (
+  assistant: ChatMessage,
+  existing: ChatMessage[] = [],
+  content: string = "Tool call aborted before completion.",
+): ToolMessage[] => {
+  if (assistant.role !== "assistant" || !assistant.toolCalls?.length) {
+    return [];
+  }
+  const byId = new Set(
+    existing.filter((message) => message.role === "tool").map((message) => message.toolCallId),
+  );
+  return assistant.toolCalls
+    .filter((call) => !byId.has(call.id))
+    .map((call) => syntheticToolResult(call, content));
+};
 
 const takeFollowingToolMessages = (
   messages: ChatMessage[],

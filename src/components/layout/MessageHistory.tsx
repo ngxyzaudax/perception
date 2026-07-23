@@ -1,6 +1,7 @@
 import { Box, Static } from "ink";
 import { useRef } from "react";
 import type { DisplayMessage } from "../../types/displayMessages.js";
+import { isBurstContinuation } from "../../screens/displayGrouping.js";
 import { renderDisplayMessage } from "../messages/renderDisplayMessage.js";
 
 type MessageHistoryProps = {
@@ -28,11 +29,17 @@ const useStaticGeneration = (messages: DisplayMessage[]): number => {
 
 type StaticItem =
   | { kind: "banner" }
-  | { kind: "message"; message: DisplayMessage };
+  | { kind: "message"; message: DisplayMessage; collapsed: boolean };
 
 const buildItems = (messages: DisplayMessage[]): StaticItem[] => [
   { kind: "banner" },
-  ...messages.map((message): StaticItem => ({ kind: "message", message })),
+  ...messages.map(
+    (message, index): StaticItem => ({
+      kind: "message",
+      message,
+      collapsed: isBurstContinuation(messages, index),
+    }),
+  ),
 ];
 
 export const MessageHistory = ({ banner, messages }: MessageHistoryProps): React.ReactElement => {
@@ -43,7 +50,7 @@ export const MessageHistory = ({ banner, messages }: MessageHistoryProps): React
         item.kind === "banner" ? (
           <Box key="banner">{banner}</Box>
         ) : (
-          renderDisplayMessage(item.message, index) ?? <Box key={`empty-${index}`} />
+          renderDisplayMessage(item.message, index, item.collapsed) ?? <Box key={`empty-${index}`} />
         )
       }
     </Static>

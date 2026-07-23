@@ -122,6 +122,9 @@ export const useInputKeys = (args: InputKeysArgs): void => {
       return;
     }
     if (key.tab || input === "\t") {
+      if (key.shift) {
+        return;
+      }
       if (args.activeSuggestions.kind !== "none") {
         applySuggestion();
       }

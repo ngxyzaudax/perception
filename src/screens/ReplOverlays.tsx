@@ -3,6 +3,7 @@ import { PermissionPrompt } from "../components/PermissionPrompt.js";
 import { QuestionPrompt } from "../components/QuestionPrompt.js";
 import { SessionPicker } from "../components/SessionPicker.js";
 import { addAlwaysAllowRule } from "../permissions/checkPermission.js";
+import { sanitizePersistRule } from "../permissions/dangerousRules.js";
 import type { Settings } from "../schemas/settings.js";
 import type { DisplayMessage } from "../types/displayMessages.js";
 import type { ChatMessage } from "../types/messages.js";
@@ -14,6 +15,7 @@ import type { ReplQueryController } from "./useReplQuery.js";
 import type { SessionController } from "./replSession.js";
 import { setActiveSessionId } from "../state/backgroundTasks.js";
 import { createPermissionContext } from "../permissions/checkPermission.js";
+import { applySessionMemory, loadSessionMemory } from "../services/memory/sessionMemory.js";
 
 type ReplOverlaysProps = {
   overlays: OverlayController;
@@ -21,6 +23,7 @@ type ReplOverlaysProps = {
   query: ReplQueryController;
   messages: ChatMessage[];
   liveSettings: Settings;
+  maxContextTokens: number;
   permissionContextRef: React.MutableRefObject<ReturnType<typeof createPermissionContext>>;
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
 };
@@ -31,6 +34,7 @@ export const ReplOverlays = ({
   query,
   messages,
   liveSettings,
+  maxContextTokens,
   permissionContextRef,
   setDisplayMessages,
 }: ReplOverlaysProps): React.ReactElement => {
@@ -41,7 +45,7 @@ export const ReplOverlays = ({
         <SessionPicker
           sessions={overlays.resumeSessions}
           onSelect={(sessionId) => {
-            void session.resumeSession(sessionId).then((loaded) => {
+            void session.resumeSession(sessionId).then(async (loaded) => {
               overlays.setResumeSessions(null);
               if (!loaded) {
                 setDisplayMessages((current) =>
@@ -49,11 +53,19 @@ export const ReplOverlays = ({
                 );
                 return;
               }
-              setDisplayMessages((current) => replaceChatMessages(current, loaded.messages));
+              const memory = await loadSessionMemory(sessionId);
+              const resumed = applySessionMemory(loaded.messages, memory, maxContextTokens);
+              setDisplayMessages((current) => replaceChatMessages(current, resumed));
               setActiveSessionId(session.getSessionId());
               query.clearStream();
               setDisplayMessages((current) =>
-                appendStatus(current, `resumed ${loaded.title}`, "Resume"),
+                appendStatus(
+                  current,
+                  resumed === loaded.messages
+                    ? `resumed ${loaded.title}`
+                    : `resumed ${loaded.title} (history condensed from session memory)`,
+                  "Resume",
+                ),
               );
             });
           }}
@@ -92,11 +104,16 @@ export const ReplOverlays = ({
           toolName={pendingPermission.toolName}
           summary={pendingPermission.summary}
           preview={pendingPermission.preview}
+          suggestedPersistRule={pendingPermission.suggestedPersistRule}
           onResolve={(result) => {
-            if (result.granted && result.persistRule) {
+            const rule =
+              result.granted && result.persistRule
+                ? sanitizePersistRule(result.persistRule)
+                : null;
+            if (rule) {
               permissionContextRef.current = addAlwaysAllowRule(
                 permissionContextRef.current,
-                result.persistRule,
+                rule,
               );
               void saveSettings({
                 ...liveSettings,

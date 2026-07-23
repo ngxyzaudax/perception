@@ -18,6 +18,7 @@ export const collectAssistantTurn = async (input: {
   registry: ToolRegistry;
   signal?: AbortSignal;
   onEvent: (event: QueryEvent) => void;
+  onToolCalls?: (toolCalls: ToolCall[]) => void;
 }): Promise<AssistantTurn> => {
   let content = "";
   let toolCalls: ToolCall[] = [];
@@ -39,6 +40,8 @@ export const collectAssistantTurn = async (input: {
       }
       if (chunk.type === "tool_calls") {
         toolCalls = chunk.toolCalls;
+        input.onToolCalls?.(toolCalls);
+        emitToolCallDelta(toolCalls, input.onEvent);
       }
       if (chunk.type === "usage") {
         const snapshot = recordUsage({
@@ -68,4 +71,21 @@ export const collectAssistantTurn = async (input: {
     },
     toolCalls,
   };
+};
+
+const PREVIEW_MAX_CHARS = 200;
+
+const emitToolCallDelta = (
+  toolCalls: ToolCall[],
+  onEvent: (event: QueryEvent) => void,
+): void => {
+  const current = toolCalls[toolCalls.length - 1];
+  if (!current || current.name.length === 0) {
+    return;
+  }
+  onEvent({
+    type: "tool_call_delta",
+    name: current.name,
+    argsPreview: current.arguments.slice(-PREVIEW_MAX_CHARS),
+  });
 };

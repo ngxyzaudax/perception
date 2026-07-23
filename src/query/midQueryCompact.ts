@@ -1,8 +1,17 @@
-import { estimatePromptTokens, shouldAutoCompact } from "../services/compact/autoCompact.js";
+import {
+  estimatePromptTokens,
+  shouldAutoCompact,
+} from "../services/compact/autoCompact.js";
 import { compactConversation } from "../services/compact/compactConversation.js";
-import { isWithinSendBudget, recoverFromOverflow } from "./contextBudget.js";
+import {
+  countClearedToolResults,
+  microCompactMessages,
+} from "../services/compact/microCompact.js";
+import { enforceWorkingBudget } from "./contextBudget.js";
 import { healWorkingHistory } from "./sanitizeHistory.js";
 import { getUsage } from "../state/usage.js";
+import { countMessagesTokens } from "../services/llm/tokenize.js";
+import { persistCompactSummary } from "../services/memory/sessionMemory.js";
 import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage, QueryEvent } from "../types/messages.js";
 
@@ -10,9 +19,18 @@ export const shouldCompactWorking = (
   lastPromptTokens: number,
   history: ChatMessage[],
   maxContextTokens: number,
-): boolean =>
-  history.length > 0 &&
-  shouldAutoCompact(estimatePromptTokens(lastPromptTokens, history), maxContextTokens);
+  compactFailures: number = 0,
+  measuredTokens?: number | null,
+): boolean => {
+  const promptTokens =
+    measuredTokens != null
+      ? Math.max(lastPromptTokens, measuredTokens)
+      : estimatePromptTokens(lastPromptTokens, history);
+  return (
+    history.length > 0 &&
+    shouldAutoCompact(promptTokens, maxContextTokens, undefined, compactFailures)
+  );
+};
 
 export const freshPromptTokens = (compactedAtRequestCount: number): number =>
   getUsage().requestCount > compactedAtRequestCount ? getUsage().lastPromptTokens : 0;
@@ -22,75 +40,94 @@ type WorkingPrep = {
   working: ChatMessage[];
   maxContextTokens: number;
   compactedAtRequestCount: number;
+  compactFailures: number;
+  sessionId?: string;
   onEvent: (event: QueryEvent) => void;
 };
 
-export const prepareWorking = async (input: WorkingPrep): Promise<number> => {
+export type PrepareWorkingResult = {
+  compactedAtRequestCount: number;
+  compactFailures: number;
+};
+
+export const prepareWorking = async (input: WorkingPrep): Promise<PrepareWorkingResult> => {
   healWorkingHistory({ working: input.working, onEvent: input.onEvent });
-  const compactedAtRequestCount = await compactWorkingIfNeeded(input);
+  await applyMicroCompact(input);
+  const compacted = await compactWorkingIfNeeded(input);
   enforceWorkingBudget({
     working: input.working,
     maxContextTokens: input.maxContextTokens,
     onEvent: input.onEvent,
   });
-  return compactedAtRequestCount;
+  return compacted;
 };
 
-const compactWorkingIfNeeded = async (input: WorkingPrep): Promise<number> => {
+const measureWorkingTokens = (input: WorkingPrep): Promise<number | null> =>
+  countMessagesTokens(input.settings, input.working.slice(1));
+
+const applyMicroCompact = async (input: WorkingPrep): Promise<void> => {
   const promptTokens = freshPromptTokens(input.compactedAtRequestCount);
-  if (!shouldCompactWorking(promptTokens, input.working.slice(1), input.maxContextTokens)) {
-    return input.compactedAtRequestCount;
-  }
-  const compacted = await compactWorkingHistory({
-    settings: input.settings,
-    systemMessage: input.working[0]!,
-    history: input.working.slice(1),
-    onEvent: input.onEvent,
-  });
-  if (!compacted) {
-    return input.compactedAtRequestCount;
-  }
-  input.working.splice(0, input.working.length, ...compacted);
-  return getUsage().requestCount;
-};
-
-export const enforceWorkingBudget = (input: {
-  working: ChatMessage[];
-  maxContextTokens: number;
-  onEvent: (event: QueryEvent) => void;
-}): void => {
-  if (isWithinSendBudget(input.working, input.maxContextTokens)) {
+  if (
+    !shouldCompactWorking(
+      promptTokens,
+      input.working.slice(1),
+      input.maxContextTokens,
+      input.compactFailures,
+      await measureWorkingTokens(input),
+    )
+  ) {
     return;
   }
-  const bounded = recoverFromOverflow(input.working, input.maxContextTokens);
-  const droppedCount = input.working.length - bounded.length;
+  const before = input.working.slice();
+  const after = [input.working[0]!, ...microCompactMessages(input.working.slice(1))];
+  const cleared = countClearedToolResults(before, after);
+  if (cleared === 0) {
+    return;
+  }
   input.onEvent({
     type: "status",
-    message: droppedCount > 0
-      ? `Trimmed ${droppedCount} oldest messages and shrank tool outputs to fit the context window.`
-      : "Shrank oversized tool outputs to fit the context window.",
+    message: `Cleared ${cleared} old tool result(s) to free context.`,
   });
-  input.working.splice(0, input.working.length, ...bounded);
+  input.working.splice(0, input.working.length, ...after);
 };
 
-const compactWorkingHistory = async (input: {
-  settings: Settings;
-  systemMessage: ChatMessage;
-  history: ChatMessage[];
-  onEvent: (event: QueryEvent) => void;
-}): Promise<ChatMessage[] | null> => {
+const compactWorkingIfNeeded = async (input: WorkingPrep): Promise<PrepareWorkingResult> => {
+  const promptTokens = freshPromptTokens(input.compactedAtRequestCount);
+  if (
+    !shouldCompactWorking(
+      promptTokens,
+      input.working.slice(1),
+      input.maxContextTokens,
+      input.compactFailures,
+      await measureWorkingTokens(input),
+    )
+  ) {
+    return {
+      compactedAtRequestCount: input.compactedAtRequestCount,
+      compactFailures: input.compactFailures,
+    };
+  }
   input.onEvent({
     type: "status",
     message: "Context threshold reached, compacting conversation history.",
   });
   try {
-    const compacted = await compactConversation(input.settings, input.history);
-    return [input.systemMessage, ...compacted];
+    const compacted = await compactConversation(input.settings, input.working.slice(1));
+    persistCompactSummary(input.sessionId, compacted);
+    input.working.splice(0, input.working.length, input.working[0]!, ...compacted);
+    return {
+      compactedAtRequestCount: getUsage().requestCount,
+      compactFailures: 0,
+    };
   } catch (error) {
     input.onEvent({
       type: "status",
       message: `Compaction failed, continuing with full history: ${error instanceof Error ? error.message : "unknown error"}`,
     });
-    return null;
+    return {
+      compactedAtRequestCount: input.compactedAtRequestCount,
+      compactFailures: input.compactFailures + 1,
+    };
   }
 };
+

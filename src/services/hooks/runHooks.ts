@@ -39,9 +39,35 @@ const runCommandHook = async (command: string, input: HookInput): Promise<HookRe
   if (result.exitCode !== 0) {
     return { allowed: false, reason: result.stderr.trim() || `hook failed with exit ${result.exitCode}` };
   }
-  const context = result.stdout.trim();
-  if (context.length > 0 && (input.event === "UserPromptSubmit" || input.event === "SessionStart")) {
-    return { allowed: true, context };
+  const stdout = result.stdout.trim();
+  const jsonResult = parseHookStdout(stdout);
+  if (jsonResult) {
+    return jsonResult;
+  }
+  if (stdout.length > 0 && (input.event === "UserPromptSubmit" || input.event === "SessionStart")) {
+    return { allowed: true, context: stdout };
   }
   return { allowed: true };
+};
+
+export const parseHookStdout = (stdout: string): HookResult | null => {
+  if (!stdout.startsWith("{")) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(stdout) as {
+      decision?: string;
+      reason?: string;
+      additionalContext?: string;
+    };
+    if (parsed.decision === "block") {
+      return { allowed: false, reason: parsed.reason ?? "hook blocked action" };
+    }
+    if (typeof parsed.additionalContext === "string" && parsed.additionalContext.length > 0) {
+      return { allowed: true, context: parsed.additionalContext };
+    }
+    return { allowed: true };
+  } catch {
+    return null;
+  }
 };

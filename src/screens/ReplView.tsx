@@ -1,5 +1,6 @@
 import { Box } from "ink";
 import { ActivityLine } from "../components/activity/ActivityLine.js";
+import { RunningToolsPanel } from "../components/activity/RunningToolsPanel.js";
 import { AgentsPanel } from "../components/agents/AgentsPanel.js";
 import { TextInput } from "../components/input/TextInput.js";
 import { LiveRegion } from "../components/layout/LiveRegion.js";
@@ -73,14 +74,20 @@ export const ReplView = ({
       gitBranch={gitBranch}
       liveRegion={
         <Box flexDirection="column">
-          <LiveRegion thinkingText={query.thinkingText} streamingText={query.streamingText} />
+          <LiveRegion
+            thinkingText={query.thinkingText}
+            streamingText={query.streamingText}
+            toolPreview={query.toolPreview}
+          />
           <AgentsPanel tasks={agentTasks} />
+          <RunningToolsPanel />
           <ActivityLine
             isActive={query.isActive}
             elapsedSeconds={elapsedSeconds}
             completionTokens={getUsage().completionTokens}
             status={query.status}
             queuedCount={query.queuedInputs.length}
+            mode={query.spinnerMode}
           />
         </Box>
       }
@@ -91,6 +98,7 @@ export const ReplView = ({
           query={query}
           messages={messages}
           liveSettings={liveSettings}
+          maxContextTokens={maxContextTokens}
           permissionContextRef={permissionContextRef}
           setDisplayMessages={setDisplayMessages}
         />

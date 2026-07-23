@@ -12,36 +12,36 @@ export const partitionToolCalls = (
   registry: ToolRegistry,
 ): ToolCallBatch[] => {
   const batches: ToolCallBatch[] = [];
-  let readOnlyBatch: ToolCall[] = [];
+  let safeBatch: ToolCall[] = [];
 
-  const flushReadOnly = (): void => {
-    if (readOnlyBatch.length === 0) {
+  const flushSafe = (): void => {
+    if (safeBatch.length === 0) {
       return;
     }
-    batches.push({ calls: readOnlyBatch, concurrent: readOnlyBatch.length > 1 });
-    readOnlyBatch = [];
+    batches.push({ calls: safeBatch, concurrent: safeBatch.length > 1 });
+    safeBatch = [];
   };
 
   for (const call of calls) {
-    if (isReadOnlyCall(call, registry)) {
-      readOnlyBatch.push(call);
+    if (isConcurrencySafeCall(call, registry)) {
+      safeBatch.push(call);
       continue;
     }
-    flushReadOnly();
+    flushSafe();
     batches.push({ calls: [call], concurrent: false });
   }
-  flushReadOnly();
+  flushSafe();
   return batches;
 };
 
-const isReadOnlyCall = (call: ToolCall, registry: ToolRegistry): boolean => {
+const isConcurrencySafeCall = (call: ToolCall, registry: ToolRegistry): boolean => {
   const tool = getTool(registry, call.name);
   if (!tool) {
     return false;
   }
   try {
     const parsed = tool.inputSchema.parse(JSON.parse(call.arguments || "{}"));
-    return tool.isReadOnly(parsed);
+    return (tool.isConcurrencySafe ?? tool.isReadOnly)(parsed);
   } catch {
     return false;
   }

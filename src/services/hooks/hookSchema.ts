@@ -6,6 +6,10 @@ export const hookEventSchema = z.enum([
   "UserPromptSubmit",
   "Stop",
   "SessionStart",
+  "PreCompact",
+  "PostCompact",
+  "SubagentStop",
+  "Notification",
 ]);
 
 export const hookCommandSchema = z.object({
@@ -32,6 +36,7 @@ export type HookInput = {
   input?: unknown;
   output?: string;
   prompt?: string;
+  message?: string;
   cwd: string;
 };
 

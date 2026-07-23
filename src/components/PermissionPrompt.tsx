@@ -9,6 +9,7 @@ type PermissionPromptProps = {
   toolName: string;
   summary: string;
   preview?: DiffPreview;
+  suggestedPersistRule?: string;
   onResolve: (result: PermissionResult) => void;
 };
 
@@ -16,13 +17,20 @@ export const PermissionPrompt = ({
   toolName,
   summary,
   preview,
+  suggestedPersistRule,
   onResolve,
 }: PermissionPromptProps): React.ReactElement => {
+  const persistLabel = suggestedPersistRule
+    ? `Yes, always allow ${suggestedPersistRule}`
+    : `Yes, always allow ${toolName}`;
   const options = [
     { label: "Yes", value: { granted: true } as PermissionResult },
     {
-      label: `Yes, always allow ${toolName}`,
-      value: { granted: true, persistRule: toolName } as PermissionResult,
+      label: persistLabel,
+      value: {
+        granted: true,
+        persistRule: suggestedPersistRule,
+      } as PermissionResult,
     },
     {
       label: "No, tell the agent what to do differently",

@@ -4,8 +4,10 @@ import { createStreamingDisplay } from "../terminal/streamDisplay.js";
 export type StreamingDisplayController = {
   streamingText: string;
   thinkingText: string;
+  toolPreview: string;
   appendText: (delta: string) => void;
   appendThinking: (delta: string) => void;
+  setToolPreview: (preview: string) => void;
   clear: () => void;
 };
 
@@ -20,8 +22,10 @@ export const useStreamingDisplay = (): StreamingDisplayController => {
   return {
     streamingText: snapshot.text,
     thinkingText: snapshot.thinking,
+    toolPreview: snapshot.toolPreview,
     appendText: display.appendText,
     appendThinking: display.appendThinking,
+    setToolPreview: display.setToolPreview,
     clear: display.clear,
   };
 };

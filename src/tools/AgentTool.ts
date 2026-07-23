@@ -16,6 +16,7 @@ const inputSchema = z.object({
     .describe(
       "Agent type: built-in (explore, plan, general-purpose, verification) or a custom agent from .perception/agents",
     ),
+  model: z.string().optional().describe("Optional model id override for the sub-agent"),
   run_in_background: z
     .boolean()
     .optional()
@@ -46,6 +47,7 @@ export const AgentTool = buildTool({
     "Spawn a sub-agent to handle a complex task. Built-in types: explore (read-only search), plan (read-only planning), general-purpose (full toolset), verification (runs tests, returns a verdict). Background agents run in isolated git worktrees on dedicated branches. Foreground sub-agents share the main tree. Sub-agents cannot spawn further agents.",
   inputSchema,
   isReadOnly: () => true,
+  isConcurrencySafe: () => true,
   summarize: (input) => input.description,
   call: async (input, context) => {
     if (!context.runtime) {
@@ -63,6 +65,7 @@ export const AgentTool = buildTool({
       runtime: context.runtime,
       signal: context.abortSignal,
       agent,
+      model: input.model,
       runInBackground,
       name: input.name,
       teamName: input.team_name,
