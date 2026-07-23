@@ -31,6 +31,13 @@ export const subscribeNotifications = (
   };
 };
 
+const MAX_NOTIFICATION_RESULT_CHARS = 6000;
+
+const capResult = (result: string): string =>
+  result.length <= MAX_NOTIFICATION_RESULT_CHARS
+    ? result
+    : `${result.slice(0, MAX_NOTIFICATION_RESULT_CHARS)}\n[result truncated; full output available via TaskOutput]`;
+
 export const formatTaskNotification = (input: {
   agentId: string;
   agentName?: string;
@@ -48,7 +55,7 @@ export const formatTaskNotification = (input: {
       : input.status === "stopped"
         ? `Agent "${input.description}" was stopped`
         : `Agent "${input.description}" failed${input.error ? `: ${input.error}` : ""}`;
-  const resultBlock = input.result ? `\n<result>${input.result}</result>` : "";
+  const resultBlock = input.result ? `\n<result>${capResult(input.result)}</result>` : "";
   const branchBlock = input.branch ? `\n<branch>${input.branch}</branch>` : "";
   const diffBlock = input.diffstat ? `\n<diffstat>\n${input.diffstat}\n</diffstat>` : "";
   const removedBlock =

@@ -119,7 +119,9 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
       permissionContextRef={state.permissionContextRef}
       setDisplayMessages={state.setDisplayMessages}
       onSubmit={(value) => {
-        void handleSubmit(value);
+        void handleSubmit(value).catch((error: unknown) => {
+          query.setStatus(error instanceof Error ? error.message : "submit failed");
+        });
       }}
       onExit={onExit}
     />

@@ -67,6 +67,20 @@ export const syncChatMessages = (
   return replaceChatMessages(display, chatMessages);
 };
 
+export const reconcileChatMessages = (
+  display: DisplayMessage[],
+  chatMessages: ChatMessage[],
+): DisplayMessage[] => {
+  const chatEntries = extractChatMessages(display);
+  const isAppendOnly =
+    chatEntries.length <= chatMessages.length &&
+    chatEntries.every((message, index) => messagesEqual(message, chatMessages[index]!));
+  if (isAppendOnly) {
+    return [...display, ...chatMessages.slice(chatEntries.length)];
+  }
+  return display;
+};
+
 export const appendStatus = (
   display: DisplayMessage[],
   content: string,

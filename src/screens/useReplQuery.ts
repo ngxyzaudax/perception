@@ -8,32 +8,9 @@ import { runHookEvent } from "../services/hooks/runHooks.js";
 import { getCwd } from "../utils/cwd.js";
 import { createQueryEventHandler, createQueryStatusSetter } from "./queryEventHandler.js";
 import { useStreamingDisplay } from "./useStreamingDisplay.js";
+import type { ReplQueryController } from "./replQueryTypes.js";
 
-export type ReplQueryController = {
-  busy: boolean;
-  preparing: boolean;
-  isActive: boolean;
-  streamingText: string;
-  thinkingText: string;
-  status: string;
-  queuedInputs: string[];
-  queryStartedAt: number | null;
-  setStatus: (status: string) => void;
-  setPreparing: (preparing: boolean) => void;
-  clearStream: () => void;
-  abortQuery: () => void;
-  queueInput: (input: string) => void;
-  drainQueue: () => string[];
-  runUserQuery: (
-    nextMessages: ChatMessage[],
-    settings: Settings,
-    permissionContext: PermissionContext,
-    runtimeExtras: QueryRuntimeExtras,
-    onComplete: (messages: ChatMessage[]) => void,
-    onMessageComplete?: (message: ChatMessage) => void,
-    systemPromptOverride?: string,
-  ) => Promise<void>;
-};
+export type { ReplQueryController } from "./replQueryTypes.js";
 
 export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"]): ReplQueryController => {
   const streaming = useStreamingDisplay();
@@ -90,6 +67,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
       runtimeExtras: QueryRuntimeExtras,
       onComplete: (messages: ChatMessage[]) => void,
       onMessageComplete?: (message: ChatMessage) => void,
+      onErrorNotice?: (message: string) => void,
       systemPromptOverride?: string,
     ): Promise<void> => {
       const controller = new AbortController();
@@ -123,7 +101,15 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
         await runHookEvent(hooksConfig, { event: "Stop", cwd: getCwd() });
       } catch (error) {
         clearStream();
-        setStatusState(controller.signal.aborted ? "query aborted" : error instanceof Error ? error.message : "query failed");
+        const message = controller.signal.aborted
+          ? "query aborted"
+          : error instanceof Error
+            ? error.message
+            : "query failed";
+        setStatusState(message);
+        if (!controller.signal.aborted) {
+          onErrorNotice?.(message);
+        }
         await runHookEvent(hooksConfig, { event: "Stop", cwd: getCwd() });
       } finally {
         abortRef.current = null;

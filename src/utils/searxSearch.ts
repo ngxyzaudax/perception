@@ -1,18 +1,5 @@
 import { parseSearxJson, type SearchResult } from "./searchResults.js";
 
-export const DEFAULT_SEARX_URLS: readonly string[] = [
-  "https://priv.au",
-  "https://searx.tiekoetter.com",
-  "https://searx.rhscz.eu",
-  "https://search.mdosch.de",
-  "https://paulgo.io",
-  "https://ooglester.com",
-  "https://searx.dresden.network",
-  "https://search.rowie.at",
-  "https://etsi.me",
-  "https://searxng.gr",
-];
-
 type SearxSearchInput = {
   urls: readonly string[];
   searchTerm: string;

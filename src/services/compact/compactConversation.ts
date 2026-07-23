@@ -1,7 +1,11 @@
-import { createLlmClient, resolveModelId } from "../llm/client.js";
+import { createLlmClient, resolveModel } from "../llm/client.js";
 import { toOpenAiMessages } from "../llm/adapters.js";
+import { shrinkOversizedToolMessages } from "../../query/toolOutputLimits.js";
+import { trimToTokenBudget } from "../../query/contextBudget.js";
 import type { Settings } from "../../schemas/settings.js";
 import type { ChatMessage } from "../../types/messages.js";
+
+const SUMMARY_INPUT_BUDGET_RATIO = 0.8;
 
 const COMPACT_INSTRUCTION =
   "Summarize the conversation so far for context continuation. Preserve: user goals, decisions made, files touched, tool findings, and unresolved tasks. Be dense and factual. Output only the summary.";
@@ -14,11 +18,16 @@ export const compactConversation = async (
     return messages;
   }
   const client = createLlmClient(settings);
-  const model = await resolveModelId(client, settings.model);
+  const resolved = await resolveModel(client, settings.model);
+  const budget = Math.floor(resolved.maxContextTokens * SUMMARY_INPUT_BUDGET_RATIO);
+  const prepared = trimToTokenBudget(
+    sanitizeForSummary(shrinkOversizedToolMessages(messages)),
+    budget,
+  );
   const response = await client.chat.completions.create({
-    model,
+    model: resolved.modelId,
     messages: [
-      ...toOpenAiMessages(sanitizeForSummary(messages)),
+      ...toOpenAiMessages(prepared),
       { role: "user", content: COMPACT_INSTRUCTION },
     ],
     stream: false,

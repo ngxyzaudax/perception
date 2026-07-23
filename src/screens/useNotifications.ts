@@ -27,7 +27,7 @@ export const useNotifications = (): NotificationController => {
       ...messagesRef.current,
       { role: "user", content },
     ];
-    void submitRef.current(nextMessages);
+    void submitRef.current(nextMessages).catch(() => {});
   }, []);
 
   useEffect(() => {

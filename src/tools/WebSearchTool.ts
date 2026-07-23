@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
-import { DEFAULT_SEARX_URLS, searchSearx } from "../utils/searxSearch.js";
+import { searchSearx } from "../utils/searxSearch.js";
 
 const inputSchema = z.object({
   search_term: z.string().describe("Search query"),
@@ -9,13 +9,16 @@ const inputSchema = z.object({
 
 export const WebSearchTool = buildTool({
   name: "WebSearch",
-  description: "Search the web via public SearXNG mirrors (JSON API)",
+  description: "Search the web via configured SearXNG instance (JSON API)",
   inputSchema,
   isReadOnly: () => true,
   summarize: (input) => input.search_term,
   call: async (input, context) => {
     const limit = Math.min(input.max_results ?? 5, 10);
-    const urls = resolveSearxUrls(context.runtime?.settings.webSearchUrls);
+    const urls = context.runtime?.settings.webSearchUrls ?? [];
+    if (urls.length === 0) {
+      return "No SearXNG mirrors configured. Add urls to webSearchUrls in ~/.perception/settings.json.";
+    }
     try {
       const results = await searchSearx({
         urls,
@@ -34,10 +37,3 @@ export const WebSearchTool = buildTool({
     }
   },
 });
-
-const resolveSearxUrls = (configured: string[] | undefined): readonly string[] => {
-  if (configured && configured.length > 0) {
-    return configured;
-  }
-  return DEFAULT_SEARX_URLS;
-};

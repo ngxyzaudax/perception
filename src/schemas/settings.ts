@@ -8,6 +8,8 @@ const lspServerSchema = z.object({
   extensionToLanguage: z.record(z.string()),
 });
 
+const defaultSearxMirrors = ["http://localhost:8080"] as const;
+
 export const settingsSchema = z.object({
   baseUrl: z.string().url().default("http://localhost:8000/v1"),
   model: z.string().optional(),
@@ -16,7 +18,7 @@ export const settingsSchema = z.object({
     .enum(["default", "plan", "bypassPermissions"])
     .default("default"),
   alwaysAllowRules: z.array(z.string()).default([]),
-  webSearchUrls: z.array(z.string().url()).default([]),
+  webSearchUrls: z.array(z.string().url()).default([...defaultSearxMirrors]),
   hooks: hooksConfigSchema.optional().default({}),
   lspServers: z.record(lspServerSchema).optional().default({}),
 });

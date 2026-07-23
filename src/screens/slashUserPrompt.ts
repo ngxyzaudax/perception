@@ -1,4 +1,4 @@
-import { shouldAutoCompact } from "../services/compact/autoCompact.js";
+import { estimatePromptTokens, shouldAutoCompact } from "../services/compact/autoCompact.js";
 import { compactConversation } from "../services/compact/compactConversation.js";
 import { createCheckpoint } from "../services/checkpoints/shadowRepo.js";
 import { recordCheckpoint } from "../services/checkpoints/checkpointState.js";
@@ -11,11 +11,13 @@ import { runHookEvent } from "../services/hooks/runHooks.js";
 import type { SlashActionContext, SlashActionResult } from "./slashActionTypes.js";
 
 const scheduleCheckpoint = (label: string, messageCount: number): void => {
-  void createCheckpoint(label).then((checkpoint) => {
-    if (checkpoint) {
-      recordCheckpoint(checkpoint, messageCount);
-    }
-  });
+  void createCheckpoint(label)
+    .then((checkpoint) => {
+      if (checkpoint) {
+        recordCheckpoint(checkpoint, messageCount);
+      }
+    })
+    .catch(() => {});
 };
 
 export const runUserPromptAction = async (
@@ -47,7 +49,10 @@ export const runUserPromptAction = async (
   let queryMessages: ChatMessage[] = [...context.messages, userMessage];
   if (
     context.messages.length > 0 &&
-    shouldAutoCompact(getUsage().lastPromptTokens, context.maxContextTokens)
+    shouldAutoCompact(
+      estimatePromptTokens(getUsage().lastPromptTokens, context.messages),
+      context.maxContextTokens,
+    )
   ) {
     const compacted = await compactConversation(context.settings, context.messages);
     queryMessages = [...compacted, userMessage];

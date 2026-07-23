@@ -6,7 +6,7 @@ import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import { titleSession } from "../services/sessions/titleSession.js";
 import { setActiveSessionId } from "../state/backgroundTasks.js";
-import { appendChatMessage, replaceChatMessages } from "./displayState.js";
+import { appendChatMessage, appendStatus, reconcileChatMessages } from "./displayState.js";
 import { resolveCoordinatorPrompt } from "./slashCommandActions.js";
 import type { ReplQueryController } from "./useReplQuery.js";
 import type { SessionController } from "./replSession.js";
@@ -30,11 +30,13 @@ type QueryFlowArgs = {
 };
 
 const scheduleCheckpoint = (label: string, messageCount: number): void => {
-  void createCheckpoint(label).then((checkpoint) => {
-    if (checkpoint) {
-      recordCheckpoint(checkpoint, messageCount);
-    }
-  });
+  void createCheckpoint(label)
+    .then((checkpoint) => {
+      if (checkpoint) {
+        recordCheckpoint(checkpoint, messageCount);
+      }
+    })
+    .catch(() => {});
 };
 
 export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]) => Promise<void>) => {
@@ -86,19 +88,28 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
         },
         args.runtimeExtras,
         (finalMessages) => {
-          args.setDisplayMessages((current) => replaceChatMessages(current, finalMessages));
+          args.setDisplayMessages((current) => reconcileChatMessages(current, finalMessages));
           args.session.persistSession(finalMessages);
           const userTurns = finalMessages.filter((message) => message.role === "user").length;
           if (userTurns >= 2) {
-            void titleSession(args.liveSettings, finalMessages).then((title) => {
-              if (title) {
-                args.session.persistSession(finalMessages, title);
-              }
-            });
+            void titleSession(args.liveSettings, finalMessages)
+              .then((title) => {
+                if (title) {
+                  args.session.persistSession(finalMessages, title);
+                }
+              })
+              .catch(() => {});
           }
-          void drainFollowUp(finalMessages);
+          void drainFollowUp(finalMessages).catch((error: unknown) => {
+            args.query.setStatus(
+              error instanceof Error ? error.message : "queued input failed",
+            );
+          });
         },
         handleMessageComplete,
+        (message) => {
+          args.setDisplayMessages((current) => appendStatus(current, message, "Error"));
+        },
         systemPromptOverride,
       );
     },

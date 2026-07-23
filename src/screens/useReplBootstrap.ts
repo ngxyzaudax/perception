@@ -42,10 +42,14 @@ export const useReplBootstrap = ({
 }: BootstrapArgs): void => {
   useEffect(() => {
     setActiveSessionId(session.getSessionId());
-    void resolveModel(createLlmClient(liveSettings), liveSettings.model).then((resolved) => {
-      setModel(resolved.modelId);
-      setMaxContextTokens(resolved.maxContextTokens);
-    });
+    void resolveModel(createLlmClient(liveSettings), liveSettings.model)
+      .then((resolved) => {
+        setModel(resolved.modelId);
+        setMaxContextTokens(resolved.maxContextTokens);
+      })
+      .catch(() => {
+        setModel("model unavailable");
+      });
     void refreshSkills().then(setSkills);
     void refreshAgents();
     void cleanupStaleWorktrees();

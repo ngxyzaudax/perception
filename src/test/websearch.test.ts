@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { parseSearxJson } from "../utils/searchResults.js";
 import { buildSearchUrl } from "../utils/searxSearch.js";
+import { settingsSchema } from "../schemas/settings.js";
 
 describe("web search parsing", () => {
   it("extracts titles and urls from searx json", async () => {
@@ -16,10 +17,25 @@ describe("web search parsing", () => {
   });
 
   it("builds searx json search urls", () => {
-    const url = buildSearchUrl("https://priv.au/", "hello world");
+    const url = buildSearchUrl("http://localhost:8080/", "hello world");
     assert.equal(
       url,
-      "https://priv.au/search?q=hello+world&format=json&language=en",
+      "http://localhost:8080/search?q=hello+world&format=json&language=en",
     );
+  });
+
+  it("defaults webSearchUrls to self-hosted searx", () => {
+    const settings = settingsSchema.parse({});
+    assert.deepEqual(settings.webSearchUrls, ["http://localhost:8080"]);
+  });
+
+  it("keeps configured webSearchUrls untouched", () => {
+    const settings = settingsSchema.parse({
+      webSearchUrls: ["http://localhost:8080", "http://127.0.0.1:8080"],
+    });
+    assert.deepEqual(settings.webSearchUrls, [
+      "http://localhost:8080",
+      "http://127.0.0.1:8080",
+    ]);
   });
 });

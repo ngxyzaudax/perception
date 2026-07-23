@@ -10,6 +10,7 @@ import { isPlanFilePath } from "../services/plans/planFiles.js";
 import { runHookEvent } from "../services/hooks/runHooks.js";
 import type { HooksConfig } from "../services/hooks/hookSchema.js";
 import type { QueryRuntimeExtras } from "./queryEngine.js";
+import { capToolOutput } from "./toolOutputLimits.js";
 import type { ToolUseContext } from "../Tool.js";
 import { getCwd } from "../utils/cwd.js";
 import { expandPath } from "../utils/path.js";
@@ -218,7 +219,7 @@ const buildToolMessage = (
   role: "tool",
   toolCallId: call.id,
   name,
-  content,
+  content: capToolOutput(content),
   summary,
   display,
   isError,

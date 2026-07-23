@@ -35,5 +35,6 @@ export type QueryEvent =
   | { type: "tool_end"; name: string; output: string; isError: boolean }
   | { type: "permission_request"; toolName: string; summary: string }
   | { type: "done" }
+  | { type: "status"; message: string }
   | { type: "error"; message: string }
   | { type: "usage"; promptTokens: number; completionTokens: number; tokensPerSecond: number };

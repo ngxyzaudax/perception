@@ -3,6 +3,9 @@ import { Command } from "@commander-js/extra-typings";
 import { runPrintMode } from "./cli/print.js";
 import type { Settings } from "./schemas/settings.js";
 import { loadSettings } from "./utils/config.js";
+import { installCrashHandlers } from "./utils/crashLog.js";
+
+installCrashHandlers();
 
 const program = new Command()
   .name("perception")

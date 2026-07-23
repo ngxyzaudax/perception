@@ -34,6 +34,9 @@ export const createQueryEventHandler = (
     if (event.type === "usage") {
       pushStatus(`${event.tokensPerSecond.toFixed(1)} tok/s`);
     }
+    if (event.type === "status") {
+      args.setStatusImmediate(event.message);
+    }
     if (event.type === "error") {
       args.setStatusImmediate(event.message);
     }
