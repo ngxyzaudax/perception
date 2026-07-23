@@ -1,6 +1,7 @@
 import { estimatePromptTokens, shouldAutoCompact } from "../services/compact/autoCompact.js";
 import { compactConversation } from "../services/compact/compactConversation.js";
 import { isWithinSendBudget, recoverFromOverflow } from "./contextBudget.js";
+import { healWorkingHistory } from "./sanitizeHistory.js";
 import { getUsage } from "../state/usage.js";
 import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage, QueryEvent } from "../types/messages.js";
@@ -16,13 +17,26 @@ export const shouldCompactWorking = (
 export const freshPromptTokens = (compactedAtRequestCount: number): number =>
   getUsage().requestCount > compactedAtRequestCount ? getUsage().lastPromptTokens : 0;
 
-export const compactWorkingIfNeeded = async (input: {
+type WorkingPrep = {
   settings: Settings;
   working: ChatMessage[];
   maxContextTokens: number;
   compactedAtRequestCount: number;
   onEvent: (event: QueryEvent) => void;
-}): Promise<number> => {
+};
+
+export const prepareWorking = async (input: WorkingPrep): Promise<number> => {
+  healWorkingHistory({ working: input.working, onEvent: input.onEvent });
+  const compactedAtRequestCount = await compactWorkingIfNeeded(input);
+  enforceWorkingBudget({
+    working: input.working,
+    maxContextTokens: input.maxContextTokens,
+    onEvent: input.onEvent,
+  });
+  return compactedAtRequestCount;
+};
+
+const compactWorkingIfNeeded = async (input: WorkingPrep): Promise<number> => {
   const promptTokens = freshPromptTokens(input.compactedAtRequestCount);
   if (!shouldCompactWorking(promptTokens, input.working.slice(1), input.maxContextTokens)) {
     return input.compactedAtRequestCount;

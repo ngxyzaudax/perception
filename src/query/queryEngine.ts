@@ -10,7 +10,7 @@ import { collectAssistantTurn } from "./collectAssistantTurn.js";
 import { runToolBatches } from "./runToolBatches.js";
 import { isContextOverflowError } from "./contextOverflow.js";
 import { recoverFromOverflow } from "./contextBudget.js";
-import { compactWorkingIfNeeded, enforceWorkingBudget } from "./midQueryCompact.js";
+import { prepareWorking } from "./midQueryCompact.js";
 
 export type QueryRuntimeExtras = {
   sessionId?: string;
@@ -72,16 +72,11 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       return { messages: working.slice(1) };
     }
 
-    compactedAtRequestCount = await compactWorkingIfNeeded({
+    compactedAtRequestCount = await prepareWorking({
       settings: input.settings,
       working,
       maxContextTokens: resolved.maxContextTokens,
       compactedAtRequestCount,
-      onEvent: input.onEvent,
-    });
-    enforceWorkingBudget({
-      working,
-      maxContextTokens: resolved.maxContextTokens,
       onEvent: input.onEvent,
     });
 
