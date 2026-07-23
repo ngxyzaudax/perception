@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { matchesRule } from "../permissions/rules.js";
 import type { PermissionResult } from "../types/permissions.js";
+import type { QuestionOption } from "../types/questions.js";
 import type { DiffPreview } from "../utils/diffLines.js";
 
 export type PendingPermission = {
@@ -61,13 +62,56 @@ const resolveCoveredByRule = (
 
 export type PendingQuestion = {
   question: string;
-  options: string[];
+  options: QuestionOption[];
   resolve: (answer: string) => void;
+  reject: (error: Error) => void;
 };
 
+export type QuestionSetter = Dispatch<SetStateAction<PendingQuestion | null>>;
+
 export const createQuestionResolver =
-  (setPending: Dispatch<SetStateAction<PendingQuestion | null>>) =>
-  async (question: string, options: string[]): Promise<string> =>
-    new Promise((resolve) => {
-      setPending({ question, options, resolve });
+  (setPending: QuestionSetter) =>
+  async (
+    question: string,
+    options: readonly QuestionOption[],
+    signal?: AbortSignal,
+  ): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new Error("question cancelled"));
+        return;
+      }
+      const onAbort = (): void => {
+        setPending(null);
+        reject(new Error("question cancelled"));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      const clearAbort = (): void => {
+        signal?.removeEventListener("abort", onAbort);
+      };
+      setPending({
+        question,
+        options: [...options],
+        resolve: (answer: string): void => {
+          clearAbort();
+          resolve(answer);
+        },
+        reject: (error: Error): void => {
+          clearAbort();
+          reject(error);
+        },
+      });
     });
+
+export const settleQuestionAnswer = (
+  pending: PendingQuestion | null,
+  answer: string,
+): null => {
+  pending?.resolve(answer);
+  return null;
+};
+
+export const settleQuestionCancel = (pending: PendingQuestion | null): null => {
+  pending?.reject(new Error("question cancelled"));
+  return null;
+};

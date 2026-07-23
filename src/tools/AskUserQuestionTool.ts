@@ -21,8 +21,15 @@ export const AskUserQuestionTool = buildTool({
     if (!context.runtime?.requestQuestion) {
       return "Question prompt unavailable in this runtime";
     }
-    const labels = input.options.map((option) => option.label);
-    const answer = await context.runtime.requestQuestion(input.question, labels);
-    return `User selected: ${answer}`;
+    try {
+      const answer = await context.runtime.requestQuestion(
+        input.question,
+        input.options,
+        context.abortSignal,
+      );
+      return `User selected: ${answer}`;
+    } catch {
+      return "User cancelled the question";
+    }
   },
 });

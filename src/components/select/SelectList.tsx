@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from "ink";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { colors } from "../../ui/theme.js";
 
 export type SelectOption<T> = {
@@ -24,23 +24,37 @@ export const SelectList = <T,>({
   onCancel,
 }: SelectListProps<T>): React.ReactElement => {
   const [index, setIndex] = useState(0);
-  const selected = options[index];
+  const indexRef = useRef(0);
+  indexRef.current = index;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   useInput((input, key) => {
-    if (key.escape && onCancel) {
-      onCancel();
+    if (key.escape && onCancelRef.current) {
+      onCancelRef.current();
+      return;
+    }
+    const count = optionsRef.current.length;
+    if (count === 0) {
       return;
     }
     if (key.upArrow || input === "k") {
-      setIndex((current) => (current === 0 ? options.length - 1 : current - 1));
+      setIndex((current) => (current === 0 ? count - 1 : current - 1));
       return;
     }
     if (key.downArrow || input === "j") {
-      setIndex((current) => (current === options.length - 1 ? 0 : current + 1));
+      setIndex((current) => (current === count - 1 ? 0 : current + 1));
       return;
     }
-    if (key.return && selected) {
-      onSelect(selected.value);
+    if (key.return) {
+      const selected = optionsRef.current[indexRef.current];
+      if (selected) {
+        onSelectRef.current(selected.value);
+      }
     }
   });
 
@@ -48,7 +62,7 @@ export const SelectList = <T,>({
     <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingX={1}>
       <Text color={borderColor}>{title}</Text>
       {options.map((option, optionIndex) => (
-        <Box key={option.label} flexDirection="column">
+        <Box key={`${optionIndex}:${option.label}`} flexDirection="column">
           <Text color={optionIndex === index ? colors.success : undefined}>
             {optionIndex === index ? "> " : "  "}
             {option.label}

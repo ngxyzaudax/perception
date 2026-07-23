@@ -129,6 +129,10 @@ export const ReplOverlays = ({
           question={overlays.pendingQuestion.question}
           options={overlays.pendingQuestion.options}
           onResolve={overlays.resolveQuestion}
+          onCancel={() => {
+            overlays.cancelQuestion();
+            query.abortQuery();
+          }}
         />
       ) : null}
     </>

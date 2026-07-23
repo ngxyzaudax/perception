@@ -5,6 +5,7 @@ import type { QueryEvent } from "./types/messages.js";
 import type { PermissionContext } from "./permissions/checkPermission.js";
 import type { HooksConfig } from "./services/hooks/hookSchema.js";
 import type { PermissionMode } from "./types/permissions.js";
+import type { QuestionOption } from "./types/questions.js";
 import type { DiffPreview } from "./utils/diffLines.js";
 
 export type ToolRuntime = {
@@ -15,7 +16,11 @@ export type ToolRuntime = {
   sessionId?: string;
   hooksConfig?: HooksConfig;
   updatePermissionMode?: (mode: PermissionMode) => void;
-  requestQuestion?: (question: string, options: string[]) => Promise<string>;
+  requestQuestion?: (
+    question: string,
+    options: readonly QuestionOption[],
+    signal?: AbortSignal,
+  ) => Promise<string>;
   coordinatorMode?: boolean;
   cwd?: string;
   agentScope?: string;

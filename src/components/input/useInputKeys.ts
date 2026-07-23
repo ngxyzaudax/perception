@@ -92,56 +92,61 @@ export const useInputKeys = (args: InputKeysArgs): void => {
     }
   };
 
-  useInput((input, key) => {
-    if (args.disabled && !args.queueMode) {
-      return;
-    }
-    if (args.search.state.active) {
-      args.search.handleKey(input, key);
-      return;
-    }
-    if (key.ctrl && input === "r") {
-      args.search.start();
-      return;
-    }
-    if (key.escape) {
-      const now = Date.now();
-      if (now - lastEscRef.current < doublePressWindowMs) {
-        args.setBuffer(createBuffer());
-        args.setSuggestionOverride(null);
-      }
-      lastEscRef.current = now;
-      return;
-    }
-    if (key.ctrl && input === "c") {
-      const now = Date.now();
-      if (now - lastCtrlCRef.current < doublePressWindowMs) {
-        args.onExitRequest();
-      }
-      lastCtrlCRef.current = now;
-      return;
-    }
-    if (key.tab || input === "\t") {
-      if (key.shift) {
+  const inputActive = !args.disabled || args.queueMode;
+
+  useInput(
+    (input, key) => {
+      if (!inputActive) {
         return;
       }
-      if (args.activeSuggestions.kind !== "none") {
-        applySuggestion();
+      if (args.search.state.active) {
+        args.search.handleKey(input, key);
+        return;
       }
-      return;
-    }
-    if (key.upArrow || key.downArrow) {
-      handleArrowKey(key);
-      return;
-    }
-    if (key.return) {
-      handleSubmitKey();
-      return;
-    }
-    const edited = applyEditingKey(args.buffer, input, key);
-    if (edited !== null) {
-      args.setBuffer(edited);
-      args.setSuggestionOverride(null);
-    }
-  });
+      if (key.ctrl && input === "r") {
+        args.search.start();
+        return;
+      }
+      if (key.escape) {
+        const now = Date.now();
+        if (now - lastEscRef.current < doublePressWindowMs) {
+          args.setBuffer(createBuffer());
+          args.setSuggestionOverride(null);
+        }
+        lastEscRef.current = now;
+        return;
+      }
+      if (key.ctrl && input === "c") {
+        const now = Date.now();
+        if (now - lastCtrlCRef.current < doublePressWindowMs) {
+          args.onExitRequest();
+        }
+        lastCtrlCRef.current = now;
+        return;
+      }
+      if (key.tab || input === "\t") {
+        if (key.shift) {
+          return;
+        }
+        if (args.activeSuggestions.kind !== "none") {
+          applySuggestion();
+        }
+        return;
+      }
+      if (key.upArrow || key.downArrow) {
+        handleArrowKey(key);
+        return;
+      }
+      if (key.return) {
+        handleSubmitKey();
+        return;
+      }
+      const edited = applyEditingKey(args.buffer, input, key);
+      if (edited !== null) {
+        args.setBuffer(edited);
+        args.setSuggestionOverride(null);
+      }
+    },
+    { isActive: inputActive },
+  );
 };

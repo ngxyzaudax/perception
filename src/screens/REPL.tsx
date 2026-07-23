@@ -55,21 +55,24 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
     notifications.bindMessages(state.messages);
   }, [notifications, state.messages]);
 
-  useInput((_input, key) => {
-    if (key.tab && key.shift) {
-      applyAutoRunToggle({
-        permissionMode: state.permissionMode,
-        liveSettings: state.liveSettings,
-        updatePermissionMode: state.updatePermissionMode,
-        appendStatusLine: (content, title) =>
-          state.setDisplayMessages((current) => appendStatus(current, content, title)),
-      });
-      return;
-    }
-    if (key.escape && query.isActive) {
-      query.abortQuery();
-    }
-  });
+  useInput(
+    (_input, key) => {
+      if (key.tab && key.shift) {
+        applyAutoRunToggle({
+          permissionMode: state.permissionMode,
+          liveSettings: state.liveSettings,
+          updatePermissionMode: state.updatePermissionMode,
+          appendStatusLine: (content, title) =>
+            state.setDisplayMessages((current) => appendStatus(current, content, title)),
+        });
+        return;
+      }
+      if (key.escape && query.isActive) {
+        query.abortQuery();
+      }
+    },
+    { isActive: overlays.pendingQuestion === null },
+  );
 
   const submitQuery = useReplQueryFlow({
     liveSettings: state.liveSettings,

@@ -1,10 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { SessionMetadata } from "../services/sessions/sessionSchema.js";
 import type { TrackedCheckpoint } from "../services/checkpoints/checkpointState.js";
 import {
   createPermissionResolver,
   createQuestionResolver,
   resolvePermissionHead,
+  settleQuestionAnswer,
+  settleQuestionCancel,
   type PendingPermission,
   type PendingQuestion,
 } from "./permissionResolver.js";
@@ -23,6 +25,7 @@ export type OverlayController = OverlayState & {
   setResumeSessions: (sessions: SessionMetadata[] | null) => void;
   setRewindCheckpoints: (checkpoints: TrackedCheckpoint[] | null) => void;
   resolveQuestion: (answer: string) => void;
+  cancelQuestion: () => void;
   isPickerOpen: boolean;
 };
 
@@ -31,6 +34,9 @@ export const useOverlays = (): OverlayController => {
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
   const [resumeSessions, setResumeSessions] = useState<SessionMetadata[] | null>(null);
   const [rewindCheckpoints, setRewindCheckpoints] = useState<TrackedCheckpoint[] | null>(null);
+  const pendingQuestionRef = useRef<PendingQuestion | null>(null);
+  pendingQuestionRef.current = pendingQuestion;
+
   const requestPermission = useCallback(createPermissionResolver(setPermissionQueue), []);
   const requestQuestion = useCallback(createQuestionResolver(setPendingQuestion), []);
 
@@ -39,10 +45,15 @@ export const useOverlays = (): OverlayController => {
   }, []);
 
   const resolveQuestion = useCallback((answer: string): void => {
-    setPendingQuestion((current) => {
-      current?.resolve(answer);
-      return null;
-    });
+    const pending = pendingQuestionRef.current;
+    setPendingQuestion(null);
+    settleQuestionAnswer(pending, answer);
+  }, []);
+
+  const cancelQuestion = useCallback((): void => {
+    const pending = pendingQuestionRef.current;
+    setPendingQuestion(null);
+    settleQuestionCancel(pending);
   }, []);
 
   const isPickerOpen =
@@ -62,6 +73,7 @@ export const useOverlays = (): OverlayController => {
     setResumeSessions,
     setRewindCheckpoints,
     resolveQuestion,
+    cancelQuestion,
     isPickerOpen,
   };
 };
