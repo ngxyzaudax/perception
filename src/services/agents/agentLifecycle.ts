@@ -75,7 +75,7 @@ export const startAgent = async (input: StartAgentInput): Promise<string> => {
     void runAgentLoop(task.id, input.runtime, input.description, input.agent, true);
     return startMessage;
   }
-  const result = await runAgentLoop(task.id, input.runtime, input.description, input.agent, false);
+  const result = await runAgentLoop(task.id, input.runtime, input.description, input.agent, true);
   return result;
 };
 
@@ -102,7 +102,7 @@ export const continueAgent = async (
     { role: "user", content: message },
   ];
   updateAgentTask(task.id, { messages, status: "running", pendingMessages: [] });
-  return runAgentLoop(task.id, runtime, task.description, undefined, false);
+  return runAgentLoop(task.id, runtime, task.description, undefined, true);
 };
 
 export const broadcastToTeam = async (

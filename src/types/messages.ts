@@ -30,6 +30,7 @@ export type ChatMessage =
 export type QueryEvent =
   | { type: "text_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
+  | { type: "message_complete"; message: ChatMessage }
   | { type: "tool_start"; name: string; input: unknown }
   | { type: "tool_end"; name: string; output: string; isError: boolean }
   | { type: "permission_request"; toolName: string; summary: string }

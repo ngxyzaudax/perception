@@ -2,8 +2,9 @@ import { Box, Text } from "ink";
 import { colors, symbols } from "../../ui/theme.js";
 import { clampToTailRows } from "../../ui/clampText.js";
 
-const streamTailRows = (): number => Math.max(4, Math.min(12, (process.stdout.rows ?? 24) - 12));
-const thinkingTailRows = 3;
+const STREAM_TAIL_ROWS = 8;
+const THINKING_TAIL_ROWS = 4;
+const LIVE_REGION_ROWS = 1 + STREAM_TAIL_ROWS;
 
 type LiveRegionProps = {
   thinkingText: string;
@@ -17,20 +18,22 @@ export const LiveRegion = ({
   if (thinkingText.length === 0 && streamingText.length === 0) {
     return null;
   }
-  const thinking = clampToTailRows(thinkingText, thinkingTailRows);
-  const streaming = clampToTailRows(streamingText, streamTailRows());
+  const showThinking = thinkingText.length > 0;
+  const showStreaming = streamingText.length > 0;
+  const thinking = clampToTailRows(thinkingText, THINKING_TAIL_ROWS);
+  const streaming = clampToTailRows(streamingText, STREAM_TAIL_ROWS);
   return (
-    <Box flexDirection="column" marginTop={1}>
-      {thinkingText.length > 0 && streamingText.length === 0 ? (
-        <Box flexDirection="column">
+    <Box flexDirection="column" marginTop={1} height={LIVE_REGION_ROWS} flexShrink={0}>
+      {showThinking ? (
+        <Box flexDirection="column" height={showStreaming ? THINKING_TAIL_ROWS : LIVE_REGION_ROWS - 1}>
           <Text dimColor>thinking</Text>
           <Text dimColor wrap="wrap">
             {thinking.visible}
           </Text>
         </Box>
       ) : null}
-      {streamingText.length > 0 ? (
-        <Box flexDirection="column">
+      {showStreaming ? (
+        <Box flexDirection="column" height={showThinking ? STREAM_TAIL_ROWS : LIVE_REGION_ROWS - 1}>
           <Text color={colors.assistant}>
             {symbols.bullet} assistant{" "}
             {streaming.truncated ? <Text dimColor>(streaming, full text on completion)</Text> : null}

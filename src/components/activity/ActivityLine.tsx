@@ -5,7 +5,7 @@ import { Spinner } from "./Spinner.js";
 const activityVerbs = ["Thinking", "Working", "Processing"] as const;
 
 type ActivityLineProps = {
-  busy: boolean;
+  isActive: boolean;
   elapsedSeconds: number;
   completionTokens: number;
   status: string;
@@ -13,13 +13,13 @@ type ActivityLineProps = {
 };
 
 export const ActivityLine = ({
-  busy,
+  isActive,
   elapsedSeconds,
   completionTokens,
   status,
   queuedCount,
 }: ActivityLineProps): React.ReactElement | null => {
-  if (!busy) {
+  if (!isActive) {
     return null;
   }
   const verb = activityVerbs[Math.floor(elapsedSeconds / 3) % activityVerbs.length];

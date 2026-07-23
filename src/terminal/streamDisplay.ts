@@ -11,11 +11,14 @@ export type StreamingDisplay = {
   clear: () => void;
 };
 
+const FLUSH_MS = 33;
+
 export const createStreamingDisplay = (): StreamingDisplay => {
   let text = "";
   let thinking = "";
   let snapshot: StreamingSnapshot = { text, thinking };
   const listeners = new Set<() => void>();
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   const notify = (): void => {
     listeners.forEach((listener) => listener());
@@ -26,6 +29,26 @@ export const createStreamingDisplay = (): StreamingDisplay => {
       return;
     }
     snapshot = { text, thinking };
+  };
+
+  const flushNow = (): void => {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    syncSnapshot();
+    notify();
+  };
+
+  const scheduleNotify = (): void => {
+    if (flushTimer !== null) {
+      return;
+    }
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      syncSnapshot();
+      notify();
+    }, FLUSH_MS);
   };
 
   return {
@@ -40,19 +63,16 @@ export const createStreamingDisplay = (): StreamingDisplay => {
     appendText: (delta) => {
       thinking = "";
       text += delta;
-      syncSnapshot();
-      notify();
+      scheduleNotify();
     },
     appendThinking: (delta) => {
       thinking += delta;
-      syncSnapshot();
-      notify();
+      scheduleNotify();
     },
     clear: () => {
       text = "";
       thinking = "";
-      syncSnapshot();
-      notify();
+      flushNow();
     },
   };
 };

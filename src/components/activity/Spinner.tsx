@@ -11,7 +11,7 @@ export const Spinner = ({ label }: SpinnerProps): React.ReactElement => {
   useEffect(() => {
     const timer = setInterval(() => {
       setFrame((current) => (current + 1) % symbols.spinner.length);
-    }, 80);
+    }, 120);
     return () => {
       clearInterval(timer);
     };

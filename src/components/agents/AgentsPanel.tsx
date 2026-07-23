@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
-import { useEffect, useState } from "react";
 import type { AgentTask } from "../../state/agentTasks.js";
+import { useSecondTick } from "../../hooks/useSecondTick.js";
 import { colors, symbols } from "../../ui/theme.js";
 import { formatDuration } from "../../ui/formatDuration.js";
 
@@ -18,19 +18,7 @@ const elapsedSince = (startedAt: string, now: number): number =>
 
 export const AgentsPanel = ({ tasks }: AgentsPanelProps): React.ReactElement | null => {
   const running = tasks.filter((task) => task.status === "running");
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    if (running.length === 0) {
-      return;
-    }
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [running.length]);
+  const now = useSecondTick(running.length > 0);
 
   if (running.length === 0) {
     return null;

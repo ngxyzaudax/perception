@@ -72,6 +72,7 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       onEvent: input.onEvent,
     });
     working.push(assistant.message);
+    input.onEvent({ type: "message_complete", message: assistant.message });
 
     if (assistant.toolCalls.length === 0) {
       input.onEvent({ type: "done" });
@@ -99,20 +100,23 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
           ),
         );
         working.push(...results);
+        for (const message of results) {
+          input.onEvent({ type: "message_complete", message });
+        }
         continue;
       }
       for (const call of batch.calls) {
-        working.push(
-          await executeToolCall({
-            call,
-            registry: input.registry,
-            settings: input.settings,
-            permissionContext: input.permissionContext,
-            signal: input.signal,
-            runtimeExtras: input.runtimeExtras,
-            onEvent: input.onEvent,
-          }),
-        );
+        const message = await executeToolCall({
+          call,
+          registry: input.registry,
+          settings: input.settings,
+          permissionContext: input.permissionContext,
+          signal: input.signal,
+          runtimeExtras: input.runtimeExtras,
+          onEvent: input.onEvent,
+        });
+        working.push(message);
+        input.onEvent({ type: "message_complete", message });
       }
     }
   }

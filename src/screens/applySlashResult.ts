@@ -1,7 +1,7 @@
 import type { Settings } from "../schemas/settings.js";
 import type { DisplayMessage } from "../types/displayMessages.js";
 import type { PermissionMode } from "../types/permissions.js";
-import { appendStatus, clearDisplay, replaceChatMessages } from "./displayState.js";
+import { appendStatus, clearDisplay, replaceChatMessages, syncChatMessages } from "./displayState.js";
 import { approvePlanContext, type SlashActionResult } from "./slashCommandActions.js";
 import type { OverlayController } from "./useOverlays.js";
 import type { ReplQueryController } from "./useReplQuery.js";
@@ -104,7 +104,7 @@ export const applySlashResult = async (
     return true;
   }
   if (result.type === "skill" || result.type === "query") {
-    deps.setDisplayMessages((current) => replaceChatMessages(current, result.messages));
+    deps.setDisplayMessages((current) => syncChatMessages(current, result.messages));
     await deps.submitQuery(result.messages);
     return true;
   }

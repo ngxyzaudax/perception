@@ -31,13 +31,3 @@ export const estimateMessageRows = (message: DisplayMessage, columns: number): n
 
 export const estimateHistoryRows = (messages: DisplayMessage[], columns: number): number =>
   BANNER_ROWS + messages.reduce((sum, message) => sum + estimateMessageRows(message, columns), 0);
-
-export const computeBottomPadRows = (
-  terminalRows: number,
-  historyRows: number,
-  chromeRows: number,
-): number => {
-  const pad = Math.max(0, terminalRows - historyRows - chromeRows);
-  const maxPad = Math.max(0, terminalRows - chromeRows - 1);
-  return Math.min(pad, maxPad);
-};

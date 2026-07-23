@@ -6,7 +6,7 @@ import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import { titleSession } from "../services/sessions/titleSession.js";
 import { setActiveSessionId } from "../state/backgroundTasks.js";
-import { replaceChatMessages } from "./displayState.js";
+import { appendChatMessage, replaceChatMessages } from "./displayState.js";
 import { resolveCoordinatorPrompt } from "./slashCommandActions.js";
 import type { ReplQueryController } from "./useReplQuery.js";
 import type { SessionController } from "./replSession.js";
@@ -29,8 +29,26 @@ type QueryFlowArgs = {
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
 };
 
+const scheduleCheckpoint = (label: string, messageCount: number): void => {
+  void createCheckpoint(label).then((checkpoint) => {
+    if (checkpoint) {
+      recordCheckpoint(checkpoint, messageCount);
+    }
+  });
+};
+
 export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]) => Promise<void>) => {
   const submitRef = useRef<(messages: ChatMessage[]) => Promise<void>>(async () => {});
+
+  const handleMessageComplete = useCallback(
+    (message: ChatMessage): void => {
+      args.setDisplayMessages((current) => appendChatMessage(current, message));
+      if (message.role === "assistant") {
+        args.query.clearStream();
+      }
+    },
+    [args],
+  );
 
   const drainFollowUp = useCallback(
     async (finalMessages: ChatMessage[]): Promise<void> => {
@@ -44,11 +62,8 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
           ? `${expanded.prompt}\n\n${expanded.attachments.join("\n\n")}`
           : expanded.prompt;
       const nextMessages: ChatMessage[] = [...finalMessages, { role: "user", content }];
-      args.setDisplayMessages((current) => replaceChatMessages(current, nextMessages));
-      const checkpoint = await createCheckpoint(queued.join("\n").slice(0, 40));
-      if (checkpoint) {
-        recordCheckpoint(checkpoint, finalMessages.length);
-      }
+      args.setDisplayMessages((current) => appendChatMessage(current, { role: "user", content }));
+      scheduleCheckpoint(queued.join("\n").slice(0, 40), finalMessages.length);
       await submitRef.current(nextMessages);
     },
     [args],
@@ -57,7 +72,6 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
   const submitQuery = useCallback(
     async (nextMessages: ChatMessage[]): Promise<void> => {
       setActiveSessionId(args.session.getSessionId());
-      args.setDisplayMessages((current) => replaceChatMessages(current, nextMessages));
       const systemPromptOverride = await resolveCoordinatorPrompt(args.coordinatorMode);
       await args.query.runUserQuery(
         nextMessages,
@@ -84,10 +98,11 @@ export const useReplQueryFlow = (args: QueryFlowArgs): ((messages: ChatMessage[]
           }
           void drainFollowUp(finalMessages);
         },
+        handleMessageComplete,
         systemPromptOverride,
       );
     },
-    [args, drainFollowUp],
+    [args, drainFollowUp, handleMessageComplete],
   );
 
   useEffect(() => {

@@ -10,6 +10,14 @@ import { getCwd } from "../utils/cwd.js";
 import { runHookEvent } from "../services/hooks/runHooks.js";
 import type { SlashActionContext, SlashActionResult } from "./slashActionTypes.js";
 
+const scheduleCheckpoint = (label: string, messageCount: number): void => {
+  void createCheckpoint(label).then((checkpoint) => {
+    if (checkpoint) {
+      recordCheckpoint(checkpoint, messageCount);
+    }
+  });
+};
+
 export const runUserPromptAction = async (
   context: SlashActionContext,
 ): Promise<SlashActionResult> => {
@@ -45,9 +53,6 @@ export const runUserPromptAction = async (
     queryMessages = [...compacted, userMessage];
     context.session.persistSession(compacted);
   }
-  const checkpoint = await createCheckpoint(context.input.slice(0, 40));
-  if (checkpoint) {
-    recordCheckpoint(checkpoint, context.messages.length);
-  }
+  scheduleCheckpoint(context.input.slice(0, 40), context.messages.length);
   return { type: "query", messages: queryMessages };
 };

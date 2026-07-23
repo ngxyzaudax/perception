@@ -47,14 +47,14 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
   });
 
   useEffect(() => {
-    notifications.bindBusy(query.busy);
-  }, [notifications, query.busy]);
+    notifications.bindBusy(query.isActive);
+  }, [notifications, query.isActive]);
   useEffect(() => {
     notifications.bindMessages(state.messages);
   }, [notifications, state.messages]);
 
   useInput((_input, key) => {
-    if (key.escape && query.busy) {
+    if (key.escape && query.isActive) {
       query.abortQuery();
     }
   });

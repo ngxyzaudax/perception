@@ -2,13 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createPermissionContext } from "../permissions/checkPermission.js";
 import { loadSettings } from "../utils/config.js";
+import { getPackageVersion } from "../utils/packageVersion.js";
 import { createToolRegistry } from "../tools.js";
 import type { AnyToolDefinition } from "../Tool.js";
 
 export const runMcpServer = async (): Promise<void> => {
   const settings = await loadSettings();
   const registry = createToolRegistry();
-  const server = new McpServer({ name: "perception", version: "0.1.0" });
+  const server = new McpServer({ name: "perception", version: getPackageVersion() });
   const permissionContext = createPermissionContext("bypassPermissions", settings.alwaysAllowRules);
 
   for (const tool of Object.values(registry)) {

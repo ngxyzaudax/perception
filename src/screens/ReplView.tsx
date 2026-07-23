@@ -10,6 +10,7 @@ import type { DisplayMessage } from "../types/displayMessages.js";
 import type { PermissionMode } from "../types/permissions.js";
 import type { ChatMessage } from "../types/messages.js";
 import { getCwd } from "../utils/cwd.js";
+import { getPackageVersion } from "../utils/packageVersion.js";
 import { getUsage } from "../state/usage.js";
 import { ReplOverlays } from "./ReplOverlays.js";
 import { useGitBranch } from "./useGitBranch.js";
@@ -60,7 +61,7 @@ export const ReplView = ({
   const gitBranch = useGitBranch();
   return (
     <ReplShell
-      version="0.1.0"
+      version={getPackageVersion()}
       model={model}
       cwd={getCwd()}
       messages={displayMessages}
@@ -75,7 +76,7 @@ export const ReplView = ({
           <LiveRegion thinkingText={query.thinkingText} streamingText={query.streamingText} />
           <AgentsPanel tasks={agentTasks} />
           <ActivityLine
-            busy={query.busy}
+            isActive={query.isActive}
             elapsedSeconds={elapsedSeconds}
             completionTokens={getUsage().completionTokens}
             status={query.status}
@@ -97,7 +98,7 @@ export const ReplView = ({
       inputArea={
         <TextInput
           disabled={overlays.isPickerOpen}
-          queueMode={query.busy && !overlays.isPickerOpen}
+          queueMode={query.isActive && !overlays.isPickerOpen}
           queuedInputs={query.queuedInputs}
           onQueue={query.queueInput}
           onSubmit={onSubmit}

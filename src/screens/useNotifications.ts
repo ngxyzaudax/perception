@@ -15,10 +15,14 @@ export const useNotifications = (): NotificationController => {
   const submitRef = useRef<(messages: ChatMessage[]) => Promise<void>>(async () => {});
 
   const drainNotification = useCallback((): void => {
-    const content = pendingRef.current.shift();
-    if (!content || busyRef.current) {
+    if (busyRef.current || pendingRef.current.length === 0) {
       return;
     }
+    const content = pendingRef.current[0];
+    if (!content) {
+      return;
+    }
+    pendingRef.current = pendingRef.current.slice(1);
     const nextMessages: ChatMessage[] = [
       ...messagesRef.current,
       { role: "user", content },
@@ -54,9 +58,14 @@ export const useNotifications = (): NotificationController => {
   );
 };
 
+export const peekPendingNotification = (pending: string[]): string | null =>
+  pending[0] ?? null;
+
+export const shiftPendingNotification = (pending: string[]): string[] => pending.slice(1);
+
 export const drainPendingNotification = (
   pending: string[],
 ): { content: string | null; remaining: string[] } => {
-  const [content, ...remaining] = pending;
-  return { content: content ?? null, remaining };
+  const content = peekPendingNotification(pending);
+  return { content, remaining: content ? shiftPendingNotification(pending) : pending };
 };
