@@ -101,16 +101,52 @@ describe("streaming tool runner", () => {
     assert.ok(messages[2]?.content.includes("read c"));
   });
 
-  it("skips remaining mutating calls after abort", async () => {
+  it("synthesizes cancelled results for remaining mutating calls after abort", async () => {
     const log: string[] = [];
     const controller = new AbortController();
     const runner = makeRunner(log, controller.signal);
     const calls = [safeCall("1", "a"), unsafeCall("2", "b")];
     runner.observe(calls);
-    controller.abort();
+    controller.abort("user-cancel");
     const messages = await runner.finish(calls);
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0]?.role === "tool" ? messages[0].toolCallId : "", "1");
+    assert.equal(messages[1]?.role === "tool" ? messages[1].toolCallId : "", "2");
+    assert.ok(messages[1]?.content.includes("Tool call aborted before completion."));
+    assert.ok(!log.includes("unsafe:b"));
+  });
+
+  it("returns synthetic cancelled results for hanging tools on abort", async () => {
+    const hangingTool = buildTool({
+      name: "Hang",
+      description: "hang",
+      inputSchema: z.object({ target: z.string() }),
+      isReadOnly: () => false,
+      summarize: (input) => input.target,
+      call: async () => new Promise(() => undefined),
+    });
+    const registry = { ...makeRegistry([]), Hang: hangingTool };
+    const controller = new AbortController();
+    const runner = createStreamingToolRunner({
+      registry,
+      settings,
+      permissionContext: createPermissionContext("bypassPermissions"),
+      signal: controller.signal,
+      onEvent: () => undefined,
+    });
+    const calls = [
+      { id: "1", name: "Hang", arguments: JSON.stringify({ target: "x" }) },
+    ];
+    runner.observe(calls);
+    controller.abort("user-cancel");
+    const messages = await Promise.race([
+      runner.finish(calls),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("finish hung")), 500);
+      }),
+    ]);
     assert.equal(messages.length, 1);
     assert.equal(messages[0]?.role === "tool" ? messages[0].toolCallId : "", "1");
-    assert.ok(!log.includes("unsafe:b"));
+    assert.ok(messages[0]?.content.includes("Tool call aborted before completion."));
   });
 });

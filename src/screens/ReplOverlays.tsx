@@ -26,6 +26,7 @@ type ReplOverlaysProps = {
   maxContextTokens: number;
   permissionContextRef: React.MutableRefObject<ReturnType<typeof createPermissionContext>>;
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
+  onCancelTurn: () => void;
 };
 
 export const ReplOverlays = ({
@@ -37,6 +38,7 @@ export const ReplOverlays = ({
   maxContextTokens,
   permissionContextRef,
   setDisplayMessages,
+  onCancelTurn,
 }: ReplOverlaysProps): React.ReactElement => {
   const pendingPermission = overlays.permissionQueue[0] ?? null;
   return (
@@ -122,6 +124,7 @@ export const ReplOverlays = ({
             }
             overlays.resolvePermission(result);
           }}
+          onCancel={onCancelTurn}
         />
       ) : null}
       {overlays.pendingQuestion ? (
@@ -129,10 +132,7 @@ export const ReplOverlays = ({
           question={overlays.pendingQuestion.question}
           options={overlays.pendingQuestion.options}
           onResolve={overlays.resolveQuestion}
-          onCancel={() => {
-            overlays.cancelQuestion();
-            query.abortQuery();
-          }}
+          onCancel={onCancelTurn}
         />
       ) : null}
     </>

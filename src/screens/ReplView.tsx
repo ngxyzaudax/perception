@@ -36,6 +36,7 @@ type ReplViewProps = {
   liveSettings: Settings;
   permissionContextRef: React.MutableRefObject<ReturnType<typeof createPermissionContext>>;
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
+  onCancelTurn: () => void;
   onSubmit: (value: string) => void;
   onExit: () => void;
 };
@@ -56,6 +57,7 @@ export const ReplView = ({
   liveSettings,
   permissionContextRef,
   setDisplayMessages,
+  onCancelTurn,
   onSubmit,
   onExit,
 }: ReplViewProps): React.ReactElement => {
@@ -101,6 +103,7 @@ export const ReplView = ({
           maxContextTokens={maxContextTokens}
           permissionContextRef={permissionContextRef}
           setDisplayMessages={setDisplayMessages}
+          onCancelTurn={onCancelTurn}
         />
       }
       inputArea={

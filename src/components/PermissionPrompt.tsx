@@ -11,6 +11,7 @@ type PermissionPromptProps = {
   preview?: DiffPreview;
   suggestedPersistRule?: string;
   onResolve: (result: PermissionResult) => void;
+  onCancel: () => void;
 };
 
 export const PermissionPrompt = ({
@@ -19,6 +20,7 @@ export const PermissionPrompt = ({
   preview,
   suggestedPersistRule,
   onResolve,
+  onCancel,
 }: PermissionPromptProps): React.ReactElement => {
   const persistLabel = suggestedPersistRule
     ? `Yes, always allow ${suggestedPersistRule}`
@@ -50,6 +52,7 @@ export const PermissionPrompt = ({
         borderColor={colors.warning}
         options={options}
         onSelect={onResolve}
+        onCancel={onCancel}
       />
     </Box>
   );

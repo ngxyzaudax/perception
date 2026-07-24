@@ -12,6 +12,26 @@ import { notifyAgentCompletion } from "./agentNotify.js";
 import { runHookEvent } from "../hooks/runHooks.js";
 import { getCwd } from "../../utils/cwd.js";
 
+const AGENT_CANCELLED_MESSAGE = "Agent cancelled before completion";
+
+const isAgentCancelled = (taskId: string): boolean => {
+  const task = getAgentTask(taskId);
+  return task?.abortController.signal.aborted === true || task?.status === "stopped";
+};
+
+const finalizeCancelledAgent = async (
+  taskId: string,
+  runtime: ToolRuntime,
+): Promise<string> => {
+  const task = getAgentTask(taskId);
+  if (task && task.status !== "stopped") {
+    updateAgentTask(taskId, { status: "stopped", resultText: AGENT_CANCELLED_MESSAGE });
+    await finalizeTaskWorktree(taskId);
+  }
+  fireSubagentStop(runtime, taskId, AGENT_CANCELLED_MESSAGE);
+  return AGENT_CANCELLED_MESSAGE;
+};
+
 export const runAgentLoop = async (
   taskId: string,
   runtime: ToolRuntime,
@@ -46,6 +66,10 @@ export const runAgentLoop = async (
         transcriptPath: current.transcriptPath,
         suppressStream,
       });
+      if (isAgentCancelled(taskId)) {
+        updateAgentTask(taskId, { messages: turn.messages });
+        return finalizeCancelledAgent(taskId, agentRuntime);
+      }
       const pending = getAgentTask(taskId)?.pendingMessages ?? [];
       updateAgentTask(taskId, {
         messages: turn.messages,
@@ -69,6 +93,9 @@ export const runAgentLoop = async (
       updateAgentTask(taskId, { messages: nextMessages, pendingMessages: [], status: "running" });
     }
   } catch (error) {
+    if (isAgentCancelled(taskId)) {
+      return finalizeCancelledAgent(taskId, agentRuntime);
+    }
     const message = error instanceof Error ? error.message : "agent failed";
     updateAgentTask(taskId, { status: "failed", resultText: message });
     const worktree = await finalizeTaskWorktree(taskId);

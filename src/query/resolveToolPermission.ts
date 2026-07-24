@@ -16,6 +16,7 @@ export const resolvePermission = async (
   input: {
     permissionContext: PermissionContext;
     runtimeExtras?: QueryRuntimeExtras;
+    signal?: AbortSignal;
   },
 ): Promise<boolean> => {
   if (tool.checkPermissions) {
@@ -57,12 +58,15 @@ export const resolvePermission = async (
     return true;
   }
   const suggestedPersistRule = suggestPersistRule(tool.name, summary) ?? undefined;
-  const response = await input.permissionContext.requestPermission?.({
-    toolName: tool.name,
-    summary,
-    preview,
-    suggestedPersistRule,
-  });
+  const response = await input.permissionContext.requestPermission?.(
+    {
+      toolName: tool.name,
+      summary,
+      preview,
+      suggestedPersistRule,
+    },
+    input.signal,
+  );
   return response?.granted ?? false;
 };
 

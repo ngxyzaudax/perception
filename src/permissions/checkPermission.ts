@@ -9,7 +9,10 @@ export type PermissionContext = {
   askRules: string[];
   allowedDomains: string[];
   additionalDirectories: string[];
-  requestPermission?: (request: Omit<PermissionRequest, "resolve">) => Promise<PermissionResult>;
+  requestPermission?: (
+    request: Omit<PermissionRequest, "resolve">,
+    signal?: AbortSignal,
+  ) => Promise<PermissionResult>;
   planApproved: boolean;
 };
 

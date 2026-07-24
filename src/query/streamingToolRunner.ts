@@ -5,6 +5,7 @@ import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage, QueryEvent, ToolCall } from "../types/messages.js";
 import { executeToolCall } from "./executeToolCall.js";
 import type { QueryRuntimeExtras } from "./queryEngine.js";
+import { syntheticToolResult } from "./sanitizeHistory.js";
 
 export type ToolRunnerInput = {
   registry: ToolRegistry;
@@ -21,10 +22,48 @@ export type StreamingToolRunner = {
   startedCount: () => number;
 };
 
+const ABORTED_TOOL_MESSAGE = "Tool call aborted before completion.";
+
+const cancelledToolMessage = (call: ToolCall): ChatMessage =>
+  syntheticToolResult(call, ABORTED_TOOL_MESSAGE);
+
+const awaitWithAbort = async (
+  call: ToolCall,
+  promise: Promise<ChatMessage>,
+  signal?: AbortSignal,
+): Promise<ChatMessage> => {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    return cancelledToolMessage(call);
+  }
+  return new Promise((resolve) => {
+    const onAbort = (): void => {
+      cleanup();
+      resolve(cancelledToolMessage(call));
+    };
+    const cleanup = (): void => {
+      signal.removeEventListener("abort", onAbort);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    void promise.then(
+      (message) => {
+        cleanup();
+        resolve(message);
+      },
+      () => {
+        cleanup();
+        resolve(cancelledToolMessage(call));
+      },
+    );
+  });
+};
+
 export const createStreamingToolRunner = (
   input: ToolRunnerInput,
 ): StreamingToolRunner => {
-  const started = new Map<string, Promise<ChatMessage>>();
+  const started = new Map<string, { call: ToolCall; promise: Promise<ChatMessage> }>();
 
   const execute = (call: ToolCall): Promise<ChatMessage> =>
     executeToolCall({
@@ -44,7 +83,7 @@ export const createStreamingToolRunner = (
     if (!isStartableCall(call, input.registry)) {
       return;
     }
-    started.set(call.id, execute(call));
+    started.set(call.id, { call, promise: execute(call) });
   };
 
   const observe = (toolCalls: ToolCall[]): void => {
@@ -58,11 +97,15 @@ export const createStreamingToolRunner = (
       tryStart(call);
     }
     const results = new Map<string, ChatMessage>();
-    for (const [id, promise] of started) {
-      results.set(id, await promise);
+    for (const [id, entry] of started) {
+      results.set(id, await awaitWithAbort(entry.call, entry.promise, input.signal));
     }
     for (const call of finalCalls) {
-      if (results.has(call.id) || input.signal?.aborted) {
+      if (results.has(call.id)) {
+        continue;
+      }
+      if (input.signal?.aborted) {
+        results.set(call.id, cancelledToolMessage(call));
         continue;
       }
       results.set(call.id, await execute(call));

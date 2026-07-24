@@ -1,8 +1,9 @@
 import { useInput } from "ink";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { applyAutoRunToggle } from "./autoRunToggle.js";
 import { appendStatus } from "./displayState.js";
 import { ReplView } from "./ReplView.js";
+import { cancelTurn } from "./cancelTurn.js";
 import { useAgentTasksPoll } from "./useAgentTasksPoll.js";
 import { useElapsedSeconds } from "./useElapsedSeconds.js";
 import { useOverlays } from "./useOverlays.js";
@@ -55,6 +56,14 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
     notifications.bindMessages(state.messages);
   }, [notifications, state.messages]);
 
+  const onCancelTurn = useCallback((): void => {
+    cancelTurn({
+      cancelPermissions: overlays.cancelPermissions,
+      cancelQuestion: overlays.cancelQuestion,
+      abortQuery: query.abortQuery,
+    });
+  }, [overlays, query]);
+
   useInput(
     (_input, key) => {
       if (key.tab && key.shift) {
@@ -68,10 +77,13 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
         return;
       }
       if (key.escape && query.isActive) {
-        query.abortQuery();
+        onCancelTurn();
       }
     },
-    { isActive: overlays.pendingQuestion === null },
+    {
+      isActive:
+        overlays.pendingQuestion === null && overlays.permissionQueue.length === 0,
+    },
   );
 
   const submitQuery = useReplQueryFlow({
@@ -134,6 +146,7 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
       liveSettings={state.liveSettings}
       permissionContextRef={state.permissionContextRef}
       setDisplayMessages={state.setDisplayMessages}
+      onCancelTurn={onCancelTurn}
       onSubmit={(value) => {
         void handleSubmit(value).catch((error: unknown) => {
           query.setStatus(error instanceof Error ? error.message : "submit failed");

@@ -46,7 +46,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
   }, []);
 
   const abortQuery = useCallback((): void => {
-    abortRef.current?.abort();
+    abortRef.current?.abort("user-cancel");
   }, []);
 
   const queueInput = useCallback((input: string): void => {

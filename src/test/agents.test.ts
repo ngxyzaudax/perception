@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { continueAgent, stopAgent } from "../services/agents/agentLifecycle.js";
+import { runAgentLoop } from "../services/agents/agentLoop.js";
 import { loadAgents, getAgentByName } from "../services/agents/loadAgents.js";
 import { readPlanFile, writePlanFile, resolvePlanPath } from "../services/plans/planFiles.js";
 import { createPermissionContext } from "../permissions/checkPermission.js";
@@ -110,6 +111,94 @@ describe("multi-agent lifecycle", () => {
     const result = await stopAgent(id);
     assert.match(result, /Stopped/);
     assert.equal(getAgentTask(id)?.status, "stopped");
+  });
+
+  it("marks aborted agents stopped without completion notification", async () => {
+    drainNotifications();
+    const id = createAgentId();
+    const abortController = new AbortController();
+    abortController.abort("user-cancel");
+    registerAgentTask({
+      id,
+      description: "cancelled task",
+      status: "running",
+      messages: [{ role: "user", content: "start" }],
+      pendingMessages: [],
+      abortController,
+      transcriptPath: "/tmp/cancel.txt",
+      sessionId: "session-1",
+      startedAt: new Date().toISOString(),
+    });
+    const settings: Settings = {
+      baseUrl: "http://127.0.0.1:1/v1",
+      apiKey: "local",
+      permissionMode: "default",
+      alwaysAllowRules: [],
+      denyRules: [],
+      askRules: [],
+      allowedDomains: [],
+      additionalDirectories: [],
+      webSearchUrls: [],
+      memoryExtraction: false,
+      hooks: {},
+      lspServers: {},
+    };
+    const runtime: ToolRuntime = {
+      settings,
+      registry: createToolRegistry(),
+      permissionContext: createPermissionContext("default"),
+      onEvent: () => {},
+      sessionId: "session-1",
+    };
+    const result = await runAgentLoop(id, runtime, "cancelled task", undefined, true);
+    assert.match(result, /cancelled/i);
+    assert.equal(getAgentTask(id)?.status, "stopped");
+    assert.equal(drainNotifications().length, 0);
+  });
+
+  it("resets aborted controllers when resuming idle agents", async () => {
+    const id = createAgentId();
+    const abortController = new AbortController();
+    abortController.abort("user-cancel");
+    registerAgentTask({
+      id,
+      name: "resumer",
+      description: "idle task",
+      status: "running",
+      messages: [{ role: "user", content: "start" }],
+      pendingMessages: [],
+      abortController,
+      transcriptPath: "/tmp/resume.txt",
+      sessionId: "session-1",
+      startedAt: new Date().toISOString(),
+    });
+    const settings: Settings = {
+      baseUrl: "http://127.0.0.1:1/v1",
+      apiKey: "local",
+      permissionMode: "default",
+      alwaysAllowRules: [],
+      denyRules: [],
+      askRules: [],
+      allowedDomains: [],
+      additionalDirectories: [],
+      webSearchUrls: [],
+      memoryExtraction: false,
+      hooks: {},
+      lspServers: {},
+    };
+    const runtime: ToolRuntime = {
+      settings,
+      registry: createToolRegistry(),
+      permissionContext: createPermissionContext("default"),
+      onEvent: () => {},
+      sessionId: "session-1",
+    };
+    const queued = await continueAgent("resumer", "follow up", runtime);
+    assert.match(queued, /queued/i);
+    updateAgentTask(id, { status: "idle", pendingMessages: [] });
+    void continueAgent("resumer", "second follow up", runtime);
+    assert.equal(getAgentTask(id)?.abortController.signal.aborted, false);
+    getAgentTask(id)?.abortController.abort("cleanup");
   });
 
   it("queues messages for running agents", async () => {

@@ -10,6 +10,13 @@ import { resolvePermission } from "./resolveToolPermission.js";
 import { buildToolContext, buildToolMessage, startProgressTicker } from "./toolCallSupport.js";
 import { getCwd } from "../utils/cwd.js";
 
+const ABORTED_TOOL_MESSAGE = "Tool call aborted before completion.";
+
+const isAborted = (signal?: AbortSignal): boolean => signal?.aborted === true;
+
+const abortedToolMessage = (call: ToolCall, name: string): ChatMessage =>
+  buildToolMessage(call, ABORTED_TOOL_MESSAGE, name, undefined, undefined, true);
+
 export const executeToolCall = async (input: {
   call: ToolCall;
   registry: ToolRegistry;
@@ -19,6 +26,9 @@ export const executeToolCall = async (input: {
   runtimeExtras?: QueryRuntimeExtras;
   onEvent: (event: QueryEvent) => void;
 }): Promise<ChatMessage> => {
+  if (isAborted(input.signal)) {
+    return abortedToolMessage(input.call, input.call.name);
+  }
   const tool = getTool(input.registry, input.call.name);
   if (!tool) {
     return buildToolMessage(input.call, `Unknown tool: ${input.call.name}`, undefined, undefined, undefined, true);
@@ -30,6 +40,9 @@ export const executeToolCall = async (input: {
     const message = error instanceof Error ? error.message : "invalid tool input";
     input.onEvent({ type: "tool_end", name: tool.name, output: message, isError: true });
     return buildToolMessage(input.call, message, tool.name, undefined, undefined, true);
+  }
+  if (isAborted(input.signal)) {
+    return abortedToolMessage(input.call, tool.name);
   }
   const summary = tool.summarize(parsedInput);
   const toolContext = buildToolContext(input);
@@ -46,14 +59,24 @@ export const executeToolCall = async (input: {
     input.onEvent({ type: "tool_end", name: tool.name, output: preHook.reason, isError: true });
     return buildToolMessage(input.call, preHook.reason, tool.name, summary, undefined, true);
   }
+  if (isAborted(input.signal)) {
+    return abortedToolMessage(input.call, tool.name);
+  }
   input.onEvent({ type: "tool_start", name: tool.name, input: parsedInput });
   input.onEvent({ type: "permission_request", toolName: tool.name, summary });
-  const granted = await resolvePermission(tool, parsedInput, toolContext, input);
+  const granted = await resolvePermission(tool, parsedInput, toolContext, {
+    permissionContext: input.permissionContext,
+    runtimeExtras: input.runtimeExtras,
+    signal: input.signal,
+  });
   if (!granted) {
     input.onEvent({ type: "tool_end", name: tool.name, output: "permission denied", isError: true });
     return buildToolMessage(input.call, "permission denied", tool.name, summary, undefined, true);
   }
-  return executeGrantedTool(tool, parsedInput, toolContext, input.call, hooksConfig, hookCwd, input.onEvent);
+  if (isAborted(input.signal)) {
+    return abortedToolMessage(input.call, tool.name);
+  }
+  return executeGrantedTool(tool, parsedInput, toolContext, input.call, hooksConfig, hookCwd, input.onEvent, input.signal);
 };
 
 const executeGrantedTool = async (
@@ -64,9 +87,13 @@ const executeGrantedTool = async (
   hooksConfig: HooksConfig,
   hookCwd: string,
   onEvent: (event: QueryEvent) => void,
+  signal?: AbortSignal,
 ): Promise<ChatMessage> => {
   const summary = tool.summarize(parsedInput);
   const preview = tool.getPreview ? await tool.getPreview(parsedInput, toolContext) : undefined;
+  if (isAborted(signal)) {
+    return abortedToolMessage(call, tool.name);
+  }
   const stopProgress = startProgressTicker(tool.name, onEvent);
   try {
     const output = await tool.call(parsedInput, toolContext);
@@ -108,4 +135,3 @@ const executeGrantedTool = async (
     stopProgress();
   }
 };
-

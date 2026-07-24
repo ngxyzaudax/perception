@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { SessionMetadata } from "../services/sessions/sessionSchema.js";
 import type { TrackedCheckpoint } from "../services/checkpoints/checkpointState.js";
 import {
+  cancelAllPermissions,
   createPermissionResolver,
   createQuestionResolver,
   resolvePermissionHead,
@@ -26,6 +27,7 @@ export type OverlayController = OverlayState & {
   setRewindCheckpoints: (checkpoints: TrackedCheckpoint[] | null) => void;
   resolveQuestion: (answer: string) => void;
   cancelQuestion: () => void;
+  cancelPermissions: () => void;
   isPickerOpen: boolean;
 };
 
@@ -35,7 +37,9 @@ export const useOverlays = (): OverlayController => {
   const [resumeSessions, setResumeSessions] = useState<SessionMetadata[] | null>(null);
   const [rewindCheckpoints, setRewindCheckpoints] = useState<TrackedCheckpoint[] | null>(null);
   const pendingQuestionRef = useRef<PendingQuestion | null>(null);
+  const permissionQueueRef = useRef<PendingPermission[]>([]);
   pendingQuestionRef.current = pendingQuestion;
+  permissionQueueRef.current = permissionQueue;
 
   const requestPermission = useCallback(createPermissionResolver(setPermissionQueue), []);
   const requestQuestion = useCallback(createQuestionResolver(setPendingQuestion), []);
@@ -56,6 +60,12 @@ export const useOverlays = (): OverlayController => {
     settleQuestionCancel(pending);
   }, []);
 
+  const cancelPermissions = useCallback((): void => {
+    const queue = permissionQueueRef.current;
+    cancelAllPermissions(queue);
+    setPermissionQueue([]);
+  }, []);
+
   const isPickerOpen =
     permissionQueue.length > 0 ||
     pendingQuestion !== null ||
@@ -74,6 +84,7 @@ export const useOverlays = (): OverlayController => {
     setRewindCheckpoints,
     resolveQuestion,
     cancelQuestion,
+    cancelPermissions,
     isPickerOpen,
   };
 };

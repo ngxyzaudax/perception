@@ -4,6 +4,13 @@ import type { PermissionResult } from "../types/permissions.js";
 import type { QuestionOption } from "../types/questions.js";
 import type { DiffPreview } from "../utils/diffLines.js";
 
+export const PERMISSION_CANCELLED = "permission cancelled";
+
+export const permissionCancelledResult = (): PermissionResult => ({
+  granted: false,
+  reason: PERMISSION_CANCELLED,
+});
+
 export type PendingPermission = {
   toolName: string;
   summary: string;
@@ -16,23 +23,45 @@ export type PermissionQueueSetter = Dispatch<SetStateAction<PendingPermission[]>
 
 export const createPermissionResolver =
   (setQueue: PermissionQueueSetter) =>
-  async (request: {
-    toolName: string;
-    summary: string;
-    preview?: DiffPreview;
-    suggestedPersistRule?: string;
-  }): Promise<PermissionResult> =>
+  async (
+    request: {
+      toolName: string;
+      summary: string;
+      preview?: DiffPreview;
+      suggestedPersistRule?: string;
+    },
+    signal?: AbortSignal,
+  ): Promise<PermissionResult> =>
     new Promise((resolve) => {
-      setQueue((current) => [
-        ...current,
-        {
-          toolName: request.toolName,
-          summary: request.summary,
-          preview: request.preview,
-          suggestedPersistRule: request.suggestedPersistRule,
-          resolve,
-        },
-      ]);
+      if (signal?.aborted) {
+        resolve(permissionCancelledResult());
+        return;
+      }
+      let settled = false;
+      const settle = (result: PermissionResult): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearAbort();
+        resolve(result);
+      };
+      const entry: PendingPermission = {
+        toolName: request.toolName,
+        summary: request.summary,
+        preview: request.preview,
+        suggestedPersistRule: request.suggestedPersistRule,
+        resolve: settle,
+      };
+      const onAbort = (): void => {
+        setQueue((current) => current.filter((item) => item !== entry));
+        settle(permissionCancelledResult());
+      };
+      const clearAbort = (): void => {
+        signal?.removeEventListener("abort", onAbort);
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      setQueue((current) => [...current, entry]);
     });
 
 export const resolvePermissionHead = (
@@ -58,6 +87,13 @@ const resolveCoveredByRule = (
     entry.resolve({ granted: true });
   }
   return queue.filter((entry) => !matchesRule(rule, entry.toolName, entry.summary));
+};
+
+export const cancelAllPermissions = (queue: readonly PendingPermission[]): void => {
+  const denied = permissionCancelledResult();
+  for (const entry of queue) {
+    entry.resolve(denied);
+  }
 };
 
 export type PendingQuestion = {
