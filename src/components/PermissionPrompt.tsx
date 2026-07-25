@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { USER_PERMISSION_DENIED } from "../permissions/permissionMessages.js";
 import type { PermissionResult } from "../types/permissions.js";
 import type { DiffPreview } from "../utils/diffLines.js";
 import { colors } from "../ui/theme.js";
@@ -35,8 +36,8 @@ export const PermissionPrompt = ({
       } as PermissionResult,
     },
     {
-      label: "No, tell the agent what to do differently",
-      value: { granted: false, reason: "user denied permission" } as PermissionResult,
+      label: "No — I'll tell the agent what to do instead",
+      value: { granted: false, reason: USER_PERMISSION_DENIED } as PermissionResult,
     },
   ];
   return (

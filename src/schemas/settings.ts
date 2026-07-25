@@ -14,6 +14,7 @@ export const settingsSchema = z.object({
   baseUrl: z.string().url().default("http://localhost:8000/v1"),
   model: z.string().optional(),
   apiKey: z.string().default("local"),
+  cursorApiKey: z.string().optional(),
   permissionMode: z
     .enum(["default", "plan", "bypassPermissions"])
     .default("default"),

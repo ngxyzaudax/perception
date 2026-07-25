@@ -29,6 +29,8 @@ export const runBackgroundShell = async (
     cwd,
     reject: false,
     env: process.env,
+    stdin: "ignore",
+    detached: process.platform !== "win32",
   });
 
   const task: BackgroundTask = {

@@ -2,6 +2,7 @@ import { mkdir, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { getCwd } from "../../utils/cwd.js";
 import { findGitRoot } from "./findGitRoot.js";
+import { injectWorktreeSandboxPolicy } from "./injectWorktreeSandbox.js";
 import { runGit } from "./runGit.js";
 import {
   validateWorktreeSlug,
@@ -28,6 +29,7 @@ export const createAgentWorktree = async (slug: string): Promise<AgentWorktree> 
   const branch = worktreeBranchName(slug);
   const existing = await readWorktreeHead(worktreePath);
   if (existing) {
+    await injectWorktreeSandboxPolicy(worktreePath);
     return { worktreePath, branch, headCommit: existing, gitRoot };
   }
   await mkdir(worktreesDirectory(gitRoot), { recursive: true });
@@ -40,6 +42,7 @@ export const createAgentWorktree = async (slug: string): Promise<AgentWorktree> 
     throw new Error(created.stderr || "failed to create worktree");
   }
   await symlinkNodeModules(gitRoot, worktreePath);
+  await injectWorktreeSandboxPolicy(worktreePath);
   return { worktreePath, branch, headCommit: head, gitRoot };
 };
 

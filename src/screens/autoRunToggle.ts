@@ -40,13 +40,21 @@ export type AutoRunToggleDeps = {
   permissionMode: PermissionMode;
   liveSettings: Settings;
   updatePermissionMode: (mode: PermissionMode) => void;
+  setLiveSettings: (settings: Settings) => void;
   appendStatusLine: (content: string, title: string) => void;
+  onEnabled?: () => void;
+  persistSettings?: (settings: Settings) => void | Promise<void>;
 };
 
 export const applyAutoRunToggle = (deps: AutoRunToggleDeps): PermissionMode => {
   const mode = nextAutoRunMode(deps.permissionMode);
+  const nextSettings = { ...deps.liveSettings, permissionMode: mode };
   deps.updatePermissionMode(mode);
-  void saveSettings({ ...deps.liveSettings, permissionMode: mode });
+  deps.setLiveSettings(nextSettings);
+  void (deps.persistSettings ?? saveSettings)(nextSettings);
+  if (isAutoRunOn(mode)) {
+    deps.onEnabled?.();
+  }
   deps.appendStatusLine(autoRunStatusText(mode), "Auto-run");
   return mode;
 };

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -79,6 +79,42 @@ describe("agent worktrees", () => {
       });
       assert.equal(finalized.hasChanges, false);
       assert.equal(finalized.removed, true);
+    } finally {
+      process.chdir(previousCwd);
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("injects jail-only sandbox policy that never enters agent commits", async () => {
+    const root = await mkdtemp(join(tmpdir(), "perception-worktree-sandbox-"));
+    const previousCwd = process.cwd();
+    try {
+      await initGitRepo(root);
+      process.chdir(root);
+      const slug = "agent-sandbox1";
+      const created = await createAgentWorktree(slug);
+      const policyPath = join(created.worktreePath, ".cursor", "sandbox.json");
+      const policy = JSON.parse(await readFile(policyPath, "utf8"));
+      assert.equal(policy.type, "workspace_readwrite");
+      assert.equal(policy.networkPolicy.default, "allow");
+      const status = await runGit(["status", "--porcelain"], created.worktreePath);
+      assert.equal(status.stdout.includes(".cursor/sandbox.json"), false);
+      await writeFile(join(created.worktreePath, "feature.txt"), "change\n", "utf8");
+      const finalized = await finalizeAgentWorktree({
+        worktreePath: created.worktreePath,
+        branch: created.branch,
+        gitRoot: created.gitRoot,
+        headCommit: created.headCommit,
+        agentId: slug,
+        description: "add feature",
+      });
+      assert.equal(finalized.hasChanges, true);
+      const tree = await runGit(
+        ["ls-tree", "-r", "--name-only", "HEAD"],
+        created.worktreePath,
+      );
+      assert.equal(tree.stdout.includes(".cursor/sandbox.json"), false);
+      assert.equal(tree.stdout.includes("feature.txt"), true);
     } finally {
       process.chdir(previousCwd);
       await rm(root, { recursive: true, force: true });

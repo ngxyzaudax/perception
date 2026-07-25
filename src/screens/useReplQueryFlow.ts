@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage } from "../types/messages.js";
-import type { PermissionMode } from "../types/permissions.js";
 import type { QueryRuntimeExtras } from "../query/queryEngine.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
 import { titleSession } from "../services/sessions/titleSession.js";
@@ -21,7 +20,6 @@ import { createCheckpoint } from "../services/checkpoints/shadowRepo.js";
 type QueryFlowArgs = {
   liveSettings: Settings;
   model: string;
-  permissionMode: PermissionMode;
   coordinatorMode: boolean;
   permissionContextRef: React.MutableRefObject<PermissionContext>;
   runtimeExtras: QueryRuntimeExtras;
@@ -29,6 +27,7 @@ type QueryFlowArgs = {
   session: SessionController;
   overlaysRequestPermission: PermissionContext["requestPermission"];
   setDisplayMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
+  onFinalMessages?: (messages: ChatMessage[]) => void;
 };
 
 const scheduleCheckpoint = (label: string, messageCount: number): void => {
@@ -79,19 +78,18 @@ export const useReplQueryFlow = (
     async (nextMessages: ChatMessage[], overrides?: QueryOverrides): Promise<void> => {
       setActiveSessionId(args.session.getSessionId());
       const systemPromptOverride = await resolveCoordinatorPrompt(args.coordinatorMode);
+      const permissionContext = args.permissionContextRef.current;
+      permissionContext.requestPermission = args.overlaysRequestPermission;
       await args.query.runUserQuery(
         nextMessages,
         {
           ...args.liveSettings,
           model: args.model === "loading..." ? args.liveSettings.model : args.model,
         },
-        {
-          ...args.permissionContextRef.current,
-          mode: args.permissionMode,
-          requestPermission: args.overlaysRequestPermission,
-        },
+        permissionContext,
         args.runtimeExtras,
         (finalMessages) => {
+          args.onFinalMessages?.(finalMessages);
           args.setDisplayMessages((current) => reconcileChatMessages(current, finalMessages));
           args.session.persistSession(finalMessages);
           void extractProjectMemory(args.liveSettings, finalMessages).catch(() => undefined);

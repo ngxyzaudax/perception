@@ -59,6 +59,14 @@ export const BashTool = buildTool({
     }
     const timeoutMs = Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
     const result = await runShell(input.command, timeoutMs, context.abortSignal, context.cwd);
+    if (result.aborted) {
+      return "Command aborted.";
+    }
+    if (result.timedOut) {
+      return [`Command timed out after ${timeoutMs}ms`, result.stdout.trim(), result.stderr.trim()]
+        .filter(Boolean)
+        .join("\n\n");
+    }
     const sections = [
       result.stdout.trim(),
       result.stderr.trim() ? `stderr:\n${result.stderr.trim()}` : "",

@@ -16,6 +16,7 @@ type TextInputProps = {
   onSubmit: (value: string) => void;
   onQueue: (value: string) => void;
   onExitRequest: () => void;
+  onInterrupt: () => void;
 };
 
 const placeholderText = "message | / commands | @ files | \\ + enter for newline";
@@ -27,6 +28,7 @@ export const TextInput = ({
   onSubmit,
   onQueue,
   onExitRequest,
+  onInterrupt,
 }: TextInputProps): React.ReactElement => {
   const [buffer, setBuffer] = useState<TextBuffer>(createBuffer());
   const [suggestionOverride, setSuggestionOverride] = useState<SuggestionState | null>(null);
@@ -49,6 +51,7 @@ export const TextInput = ({
     onSubmit,
     onQueue,
     onExitRequest,
+    onInterrupt,
   });
 
   const renderValue = (): React.ReactElement => {
@@ -75,7 +78,11 @@ export const TextInput = ({
         {renderValue()}
       </Box>
       <SuggestionMenu suggestions={activeSuggestions} />
-      <InputFooter searchState={search.state} queuedInputs={queuedInputs} />
+      <InputFooter
+        searchState={search.state}
+        queuedInputs={queuedInputs}
+        queueMode={queueMode}
+      />
     </Box>
   );
 };

@@ -5,11 +5,13 @@ import type { HistorySearchState } from "./useHistorySearch.js";
 type InputFooterProps = {
   searchState: HistorySearchState;
   queuedInputs: string[];
+  queueMode: boolean;
 };
 
 export const InputFooter = ({
   searchState,
   queuedInputs,
+  queueMode,
 }: InputFooterProps): React.ReactElement => (
   <>
     {searchState.active ? (
@@ -23,6 +25,10 @@ export const InputFooter = ({
         queued: {queued}
       </Text>
     ))}
-    <Text dimColor>esc esc clear | ctrl+r search | ctrl+c ctrl+c exit</Text>
+    <Text dimColor>
+      {queueMode
+        ? "esc interrupt | enter queue | ctrl+c ctrl+c exit"
+        : "esc esc clear | ctrl+r search | ctrl+c ctrl+c exit"}
+    </Text>
   </>
 );

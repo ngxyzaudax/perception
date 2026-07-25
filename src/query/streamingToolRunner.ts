@@ -1,6 +1,7 @@
 import { getTool } from "../Tool.js";
 import type { ToolRegistry } from "../Tool.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
+import { isUserPermissionRejectContent } from "../permissions/permissionMessages.js";
 import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage, QueryEvent, ToolCall } from "../types/messages.js";
 import { executeToolCall } from "./executeToolCall.js";
@@ -39,23 +40,25 @@ const awaitWithAbort = async (
     return cancelledToolMessage(call);
   }
   return new Promise((resolve) => {
-    const onAbort = (): void => {
+    let settled = false;
+    const settle = (message: ChatMessage): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       cleanup();
-      resolve(cancelledToolMessage(call));
+      resolve(message);
+    };
+    const onAbort = (): void => {
+      settle(cancelledToolMessage(call));
     };
     const cleanup = (): void => {
       signal.removeEventListener("abort", onAbort);
     };
     signal.addEventListener("abort", onAbort, { once: true });
     void promise.then(
-      (message) => {
-        cleanup();
-        resolve(message);
-      },
-      () => {
-        cleanup();
-        resolve(cancelledToolMessage(call));
-      },
+      (message) => settle(message),
+      () => settle(cancelledToolMessage(call)),
     );
   });
 };
@@ -98,7 +101,11 @@ export const createStreamingToolRunner = (
     }
     const results = new Map<string, ChatMessage>();
     for (const [id, entry] of started) {
-      results.set(id, await awaitWithAbort(entry.call, entry.promise, input.signal));
+      const message = await awaitWithAbort(entry.call, entry.promise, input.signal);
+      results.set(id, message);
+      if (isUserPermissionRejectContent(message.content)) {
+        input.runtimeExtras?.onUserPermissionReject?.();
+      }
     }
     for (const call of finalCalls) {
       if (results.has(call.id)) {
@@ -108,7 +115,11 @@ export const createStreamingToolRunner = (
         results.set(call.id, cancelledToolMessage(call));
         continue;
       }
-      results.set(call.id, await execute(call));
+      const message = await execute(call);
+      results.set(call.id, message);
+      if (isUserPermissionRejectContent(message.content)) {
+        input.runtimeExtras?.onUserPermissionReject?.();
+      }
     }
     const merged = finalCalls
       .map((call) => results.get(call.id))

@@ -1,60 +1,47 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { subscribeNotifications } from "../state/agentNotifications.js";
-import type { ChatMessage } from "../types/messages.js";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  dequeueNotification,
+  restoreNotification,
+  subscribeNotifications,
+} from "../state/agentNotifications.js";
+import { getRunningTools, type RunningTool } from "../state/runningTools.js";
+import {
+  createNotificationDelivery,
+  type NotificationDelivery,
+} from "./notificationDelivery.js";
 
-export type NotificationController = {
-  bindSubmit: (submit: (messages: ChatMessage[]) => Promise<void>) => void;
-  bindBusy: (busy: boolean) => void;
-  bindMessages: (messages: ChatMessage[]) => void;
-};
+export type NotificationController = Omit<NotificationDelivery, "notify">;
 
-export const useNotifications = (): NotificationController => {
-  const pendingRef = useRef<string[]>([]);
-  const busyRef = useRef(false);
-  const messagesRef = useRef<ChatMessage[]>([]);
-  const submitRef = useRef<(messages: ChatMessage[]) => Promise<void>>(async () => {});
+export const onlySleepToolRunning = (tools: RunningTool[]): boolean =>
+  tools.length === 1 && tools[0]?.name === "Sleep" && tools[0].count === 1;
 
-  const drainNotification = useCallback((): void => {
-    if (busyRef.current || pendingRef.current.length === 0) {
-      return;
-    }
-    const content = pendingRef.current[0];
-    if (!content) {
-      return;
-    }
-    pendingRef.current = pendingRef.current.slice(1);
-    const nextMessages: ChatMessage[] = [
-      ...messagesRef.current,
-      { role: "user", content },
-    ];
-    void submitRef.current(nextMessages).catch(() => {});
-  }, []);
+export const useNotifications = (
+  wakeFromSleep: () => void,
+): NotificationController => {
+  const wakeFromSleepRef = useRef(wakeFromSleep);
+  wakeFromSleepRef.current = wakeFromSleep;
+  const deliveryRef = useRef<NotificationDelivery>();
+  if (!deliveryRef.current) {
+    deliveryRef.current = createNotificationDelivery({
+      dequeue: dequeueNotification,
+      restore: restoreNotification,
+      wakeFromSleep: () => wakeFromSleepRef.current(),
+      onlySleepRunning: () => onlySleepToolRunning(getRunningTools()),
+    });
+  }
+  const delivery = deliveryRef.current;
 
   useEffect(() => {
-    return subscribeNotifications((notification) => {
-      pendingRef.current.push(notification.content);
-      drainNotification();
-    });
-  }, [drainNotification]);
-
-  const bindSubmit = useCallback((submit: (messages: ChatMessage[]) => Promise<void>): void => {
-    submitRef.current = submit;
-  }, []);
-
-  const bindBusy = useCallback((busy: boolean): void => {
-    busyRef.current = busy;
-    if (!busy) {
-      drainNotification();
-    }
-  }, [drainNotification]);
-
-  const bindMessages = useCallback((messages: ChatMessage[]): void => {
-    messagesRef.current = messages;
-  }, []);
+    return subscribeNotifications(delivery.notify);
+  }, [delivery]);
 
   return useMemo(
-    () => ({ bindSubmit, bindBusy, bindMessages }),
-    [bindBusy, bindMessages, bindSubmit],
+    () => ({
+      bindSubmit: delivery.bindSubmit,
+      bindState: delivery.bindState,
+      updateMessages: delivery.updateMessages,
+    }),
+    [delivery],
   );
 };
 

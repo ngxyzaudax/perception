@@ -9,11 +9,13 @@ export type AgentNotification = {
 };
 
 const pending: AgentNotification[] = [];
-let subscriber: ((notification: AgentNotification) => void) | null = null;
+const subscribers = new Set<(notification: AgentNotification) => void>();
 
 export const enqueueNotification = (notification: AgentNotification): void => {
   pending.push(notification);
-  subscriber?.(notification);
+  for (const subscriber of subscribers) {
+    subscriber(notification);
+  }
   void loadHooksConfig().then((hooks) =>
     runHookEvent(hooks, {
       event: "Notification",
@@ -32,15 +34,18 @@ export const drainNotifications = (): AgentNotification[] => {
 
 export const peekNotifications = (): AgentNotification[] => [...pending];
 
+export const dequeueNotification = (): AgentNotification | null =>
+  pending.shift() ?? null;
+
+export const restoreNotification = (notification: AgentNotification): void => {
+  pending.unshift(notification);
+};
+
 export const subscribeNotifications = (
   callback: (notification: AgentNotification) => void,
 ): (() => void) => {
-  subscriber = callback;
-  return () => {
-    if (subscriber === callback) {
-      subscriber = null;
-    }
-  };
+  subscribers.add(callback);
+  return () => subscribers.delete(callback);
 };
 
 const MAX_NOTIFICATION_RESULT_CHARS = 6000;

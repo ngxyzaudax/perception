@@ -1,3 +1,4 @@
+import { CursorAgentTool } from "./tools/CursorAgentTool.js";
 import { AgentTool } from "./tools/AgentTool.js";
 import { AskUserQuestionTool } from "./tools/AskUserQuestionTool.js";
 import { BashTool } from "./tools/BashTool.js";
@@ -62,7 +63,7 @@ const sharedTools = [
   TaskListTool,
 ];
 
-const mainOnlyTools = [ConfigTool, CronCreateTool, CronDeleteTool, CronListTool];
+const mainOnlyTools = [ConfigTool, CronCreateTool, CronDeleteTool, CronListTool, CursorAgentTool];
 
 const coordinatorTools = [TeamCreateTool, TeamDeleteTool];
 

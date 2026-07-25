@@ -3,6 +3,10 @@ import { describe, it } from "node:test";
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
 import { createPermissionContext } from "../permissions/checkPermission.js";
+import {
+  REJECT_MESSAGE,
+  USER_PERMISSION_DENIED,
+} from "../permissions/permissionMessages.js";
 import { executeToolCall } from "../query/executeToolCall.js";
 import { settingsSchema } from "../schemas/settings.js";
 
@@ -31,5 +35,40 @@ describe("executeToolCall abort", () => {
     assert.equal(message.role, "tool");
     assert.equal(message.content, "Tool call aborted before completion.");
     assert.equal(message.isError, true);
+  });
+});
+
+describe("executeToolCall permission reject", () => {
+  it("returns STOP/wait message when user denies permission", async () => {
+    const tool = buildTool({
+      name: "Bash",
+      description: "bash",
+      inputSchema: z.object({ command: z.string() }),
+      isReadOnly: () => false,
+      summarize: (input) => input.command,
+      call: async () => "should not run",
+    });
+    const message = await executeToolCall({
+      call: {
+        id: "1",
+        name: "Bash",
+        arguments: JSON.stringify({ command: "rm -rf /" }),
+      },
+      registry: { Bash: tool },
+      settings,
+      permissionContext: {
+        ...createPermissionContext("default"),
+        requestPermission: async () => ({
+          granted: false,
+          reason: USER_PERMISSION_DENIED,
+        }),
+      },
+      onEvent: () => undefined,
+    });
+    assert.equal(message.role, "tool");
+    if (message.role === "tool") {
+      assert.equal(message.content, REJECT_MESSAGE);
+      assert.equal(message.isError, true);
+    }
   });
 });

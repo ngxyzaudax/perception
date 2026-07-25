@@ -42,6 +42,8 @@ export const finalizeAgentWorktree = async (input: {
   };
 };
 
+const IGNORED_STATUS_FRAGMENTS = ["node_modules", ".cursor/sandbox.json"] as const;
+
 const isDirty = async (worktreePath: string): Promise<boolean> => {
   const status = await runGit(["status", "--porcelain"], worktreePath);
   if (status.exitCode !== 0) {
@@ -50,7 +52,11 @@ const isDirty = async (worktreePath: string): Promise<boolean> => {
   return status.stdout
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.includes("node_modules"))
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        !IGNORED_STATUS_FRAGMENTS.some((fragment) => line.includes(fragment)),
+    )
     .length > 0;
 };
 
@@ -59,7 +65,10 @@ const commitWorktree = async (input: {
   agentId: string;
   description: string;
 }): Promise<void> => {
-  await runGit(["add", "-A", "--", ".", ":!node_modules"], input.worktreePath);
+  await runGit(
+    ["add", "-A", "--", ".", ":!node_modules", ":!.cursor/sandbox.json"],
+    input.worktreePath,
+  );
   const message = `agent ${input.agentId}: ${input.description}`;
   await runGit(["commit", "-m", message], input.worktreePath);
 };

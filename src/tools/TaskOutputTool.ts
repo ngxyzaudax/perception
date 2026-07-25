@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
 import { getAgentTask, getAgentTaskByIdOrName } from "../state/agentTasks.js";
+import { getCursorAgentTaskByIdOrAgentId } from "../state/cursorAgentTasks.js";
 import { getTask } from "../state/backgroundTasks.js";
 
 const inputSchema = z.object({
@@ -19,6 +20,26 @@ export const TaskOutputTool = buildTool({
   isReadOnly: () => true,
   summarize: (input) => input.task_id,
   call: async (input) => {
+    const cursor = getCursorAgentTaskByIdOrAgentId(input.task_id);
+    if (cursor) {
+      const output = cursor.resultText ?? cursor.errorText ?? "";
+      const lines = output.split("\n");
+      const tail = Math.min(input.tail_lines ?? DEFAULT_TAIL_LINES, DEFAULT_TAIL_LINES);
+      return capOutput(
+        [
+          `cursor-agent: ${cursor.agentId} (task ${cursor.id})`,
+          `runtime: ${cursor.runtime}`,
+          `status: ${cursor.status}`,
+          cursor.cwd ? `cwd: ${cursor.cwd}` : "",
+          cursor.isolated && cursor.worktreeBranch ? `branch: ${cursor.worktreeBranch}` : "",
+          cursor.repoUrl ? `repo: ${cursor.repoUrl}` : "",
+          cursor.runId ? `run: ${cursor.runId}` : "",
+          lines.slice(-tail).join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
     const agent = getAgentTask(input.task_id) ?? getAgentTaskByIdOrName(input.task_id);
     if (agent) {
       let output = agent.resultText ?? "";

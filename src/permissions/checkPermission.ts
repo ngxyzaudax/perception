@@ -97,19 +97,21 @@ export const checkToolPermission = async (
   return context.requestPermission({ toolName, summary });
 };
 
-export const approvePlan = (context: PermissionContext): PermissionContext => ({
-  ...context,
-  planApproved: true,
-});
+export const approvePlan = (context: PermissionContext): PermissionContext => {
+  context.planApproved = true;
+  return context;
+};
 
 export const setPermissionMode = (
   context: PermissionContext,
   mode: PermissionMode,
-): PermissionContext => ({
-  ...context,
-  mode,
-  planApproved: mode === "plan" ? context.planApproved : false,
-});
+): PermissionContext => {
+  context.mode = mode;
+  if (mode !== "plan") {
+    context.planApproved = false;
+  }
+  return context;
+};
 
 export const addAlwaysAllowRule = (
   context: PermissionContext,

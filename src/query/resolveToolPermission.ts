@@ -6,6 +6,7 @@ import {
 import { suggestPersistRule } from "../permissions/persistRule.js";
 import { checkPathSafety } from "../permissions/pathSafety.js";
 import { isPlanFilePath } from "../services/plans/planFiles.js";
+import type { PermissionResult } from "../types/permissions.js";
 import { expandPath } from "../utils/path.js";
 import type { QueryRuntimeExtras } from "./queryEngine.js";
 
@@ -18,20 +19,17 @@ export const resolvePermission = async (
     runtimeExtras?: QueryRuntimeExtras;
     signal?: AbortSignal;
   },
-): Promise<boolean> => {
+): Promise<PermissionResult> => {
   if (tool.checkPermissions) {
     const early = await tool.checkPermissions(parsedInput, toolContext);
-    if (early?.granted) {
-      return true;
-    }
-    if (early && !early.granted) {
-      return false;
+    if (early) {
+      return early;
     }
   }
 
   const pathGate = pathPermissionOptions(tool.name, parsedInput, toolContext, input.permissionContext);
   if (pathGate.pathDenied) {
-    return false;
+    return { granted: false, reason: pathGate.pathDenied };
   }
 
   const preview = tool.getPreview ? await tool.getPreview(parsedInput, toolContext) : undefined;
@@ -55,7 +53,7 @@ export const resolvePermission = async (
     },
   );
   if (permission.granted) {
-    return true;
+    return permission;
   }
   const suggestedPersistRule = suggestPersistRule(tool.name, summary) ?? undefined;
   const response = await input.permissionContext.requestPermission?.(
@@ -67,7 +65,7 @@ export const resolvePermission = async (
     },
     input.signal,
   );
-  return response?.granted ?? false;
+  return response ?? { granted: false, reason: "permission prompt unavailable" };
 };
 
 const pathPermissionOptions = (

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   checkToolPermission,
   createPermissionContext,
+  setPermissionMode,
 } from "../permissions/checkPermission.js";
 import { isDangerousPersistRule, sanitizePersistRule } from "../permissions/dangerousRules.js";
 import { isDomainAllowed } from "../permissions/domains.js";
@@ -44,24 +45,18 @@ describe("permissions", () => {
     assert.equal(result.granted, false);
   });
 
-  it("forces a prompt for ask rules", async () => {
+  it("mutates permission mode in place for mid-turn toggles", async () => {
+    const context = createPermissionContext("default");
     let prompted = false;
-    const result = await checkToolPermission(
-      createPermissionContext({
-        mode: "default",
-        alwaysAllowRules: ["Bash(git *)"],
-        askRules: ["Bash(git *)"],
-        requestPermission: async () => {
-          prompted = true;
-          return { granted: true };
-        },
-      }),
-      "Bash",
-      "git status",
-      false,
-    );
+    context.requestPermission = async () => {
+      prompted = true;
+      return { granted: false, reason: "should not prompt" };
+    };
+    setPermissionMode(context, "bypassPermissions");
+    const result = await checkToolPermission(context, "Bash", "echo hi", false);
+    assert.equal(context.mode, "bypassPermissions");
     assert.ok(result.granted);
-    assert.ok(prompted);
+    assert.equal(prompted, false);
   });
 
   it("rejects over-broad persist rules", () => {
@@ -82,6 +77,29 @@ describe("permissions", () => {
 
   it("marks sensitive paths for forced ask", () => {
     const safety = checkPathSafety("/home/user/project/.git/config", "/home/user/project");
+    assert.ok(safety.ok);
+    assert.equal(safety.sensitive, true);
+  });
+
+  it("marks project .perception config as sensitive", () => {
+    const safety = checkPathSafety(
+      "/home/user/project/.perception/settings.json",
+      "/home/user/project",
+    );
+    assert.ok(safety.ok);
+    assert.equal(safety.sensitive, true);
+  });
+
+  it("exempts agent worktree paths from .perception sensitivity", () => {
+    const cwd = "/home/user/project/.perception/worktrees/agent-abc-def";
+    const safety = checkPathSafety(`${cwd}/src/auth/credentials.service.ts`, cwd);
+    assert.ok(safety.ok);
+    assert.equal(safety.sensitive, false);
+  });
+
+  it("still marks .git inside a worktree as sensitive", () => {
+    const cwd = "/home/user/project/.perception/worktrees/agent-abc-def";
+    const safety = checkPathSafety(`${cwd}/.git/config`, cwd);
     assert.ok(safety.ok);
     assert.equal(safety.sensitive, true);
   });

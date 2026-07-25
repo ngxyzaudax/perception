@@ -31,6 +31,7 @@ type InputKeysArgs = {
   onSubmit: (value: string) => void;
   onQueue: (value: string) => void;
   onExitRequest: () => void;
+  onInterrupt: () => void;
 };
 
 const doublePressWindowMs = 400;
@@ -108,6 +109,10 @@ export const useInputKeys = (args: InputKeysArgs): void => {
         return;
       }
       if (key.escape) {
+        if (args.queueMode) {
+          args.onInterrupt();
+          return;
+        }
         const now = Date.now();
         if (now - lastEscRef.current < doublePressWindowMs) {
           args.setBuffer(createBuffer());

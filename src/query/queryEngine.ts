@@ -1,5 +1,6 @@
 import { buildSystemPrompt } from "../context/systemPrompt.js";
 import { createLlmClient, resolveModel } from "../services/llm/client.js";
+import { isUserPermissionRejectContent } from "../permissions/permissionMessages.js";
 import type { ChatMessage } from "../types/messages.js";
 import { createStreamingToolRunner } from "./streamingToolRunner.js";
 import { prepareWorking } from "./midQueryCompact.js";
@@ -119,7 +120,10 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
     }
     const toolMessages = await toolRunner.finish(assistant.toolCalls);
     working.push(...toolMessages);
-    if (input.signal?.aborted) {
+    if (
+      input.signal?.aborted ||
+      toolMessages.some((message) => isUserPermissionRejectContent(message.content))
+    ) {
       working.push(...missingToolResults(assistant.message, toolMessages));
       return { messages: working.slice(1) };
     }

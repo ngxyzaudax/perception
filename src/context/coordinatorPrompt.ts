@@ -15,6 +15,8 @@ export const buildCoordinatorPrompt = (): string =>
     "- TeamCreate / TeamDelete: manage agent teams",
     "",
     "Worker results arrive as <task-notification> user messages. Never fabricate worker results.",
+    "Background worker completion automatically starts a new turn when you are idle.",
+    "Do not call Sleep or repeatedly poll TaskOutput while waiting for workers.",
     "Workers cannot see your conversation. Every worker prompt must be self-contained with file paths, line numbers, and clear done criteria.",
     "",
     "Isolation:",

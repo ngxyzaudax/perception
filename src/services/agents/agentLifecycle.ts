@@ -17,6 +17,7 @@ import {
   tryCreateWorktree,
   type AgentIsolation,
 } from "./agentNotify.js";
+import { applyWorktreeNotice } from "./worktreeNotice.js";
 
 export type { AgentIsolation };
 export { continueAgent, broadcastToTeam, stopAgent } from "./agentControl.js";
@@ -44,13 +45,20 @@ export const startAgent = async (input: StartAgentInput): Promise<string> => {
   const unlinkParentAbort = linkParentAbort(input.signal, abortController, input.runInBackground);
   const isolation = resolveIsolation(input.runInBackground, input.isolation);
   const worktree = isolation === "worktree" ? await tryCreateWorktree(agentId) : null;
+  const prompt = worktree
+    ? applyWorktreeNotice(input.prompt, {
+        cwd: worktree.worktreePath,
+        branch: worktree.branch,
+        isolated: true,
+      })
+    : input.prompt;
   const task: AgentTask = {
     id: agentId,
     name: input.name,
     teamName: input.teamName,
     description: input.description,
     status: "running",
-    messages: [{ role: "user", content: input.prompt }],
+    messages: [{ role: "user", content: prompt }],
     systemPromptOverride: input.agent?.systemPrompt,
     model: input.model ?? input.agent?.model,
     pendingMessages: [],

@@ -24,7 +24,7 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
   const state = useReplState(initialSettings);
   const query = useReplQuery(state.registry);
   const overlays = useOverlays();
-  const notifications = useNotifications();
+  const notifications = useNotifications(query.abortQuery);
   const elapsedSeconds = useElapsedSeconds(query.queryStartedAt);
 
   const runtimeExtras = useMemo(
@@ -34,8 +34,9 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
       updatePermissionMode: state.updatePermissionMode,
       requestQuestion: overlays.requestQuestion,
       coordinatorMode: state.coordinatorMode,
+      onUserPermissionReject: query.abortQuery,
     }),
-    [overlays.requestQuestion, state],
+    [overlays.requestQuestion, query.abortQuery, state],
   );
 
   useReplBootstrap({
@@ -50,11 +51,8 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
   });
 
   useEffect(() => {
-    notifications.bindBusy(query.isActive);
-  }, [notifications, query.isActive]);
-  useEffect(() => {
-    notifications.bindMessages(state.messages);
-  }, [notifications, state.messages]);
+    notifications.bindState(state.messages, query.isActive);
+  }, [notifications, query.isActive, state.messages]);
 
   const onCancelTurn = useCallback((): void => {
     cancelTurn({
@@ -64,32 +62,33 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
     });
   }, [overlays, query]);
 
+  useInput((_input, key) => {
+    if (!key.tab || !key.shift) {
+      return;
+    }
+    applyAutoRunToggle({
+      permissionMode: state.permissionMode,
+      liveSettings: state.liveSettings,
+      updatePermissionMode: state.updatePermissionMode,
+      setLiveSettings: state.setLiveSettings,
+      onEnabled: overlays.grantPermissions,
+      appendStatusLine: (content, title) =>
+        state.setDisplayMessages((current) => appendStatus(current, content, title)),
+    });
+  });
+
   useInput(
     (_input, key) => {
-      if (key.tab && key.shift) {
-        applyAutoRunToggle({
-          permissionMode: state.permissionMode,
-          liveSettings: state.liveSettings,
-          updatePermissionMode: state.updatePermissionMode,
-          appendStatusLine: (content, title) =>
-            state.setDisplayMessages((current) => appendStatus(current, content, title)),
-        });
-        return;
-      }
       if (key.escape && query.isActive) {
         onCancelTurn();
       }
     },
-    {
-      isActive:
-        overlays.pendingQuestion === null && overlays.permissionQueue.length === 0,
-    },
+    { isActive: query.isActive },
   );
 
   const submitQuery = useReplQueryFlow({
     liveSettings: state.liveSettings,
     model: state.model,
-    permissionMode: state.permissionMode,
     coordinatorMode: state.coordinatorMode,
     permissionContextRef: state.permissionContextRef,
     runtimeExtras,
@@ -97,6 +96,7 @@ export const Repl = ({ settings: initialSettings, onExit }: ReplProps): React.Re
     session: state.session,
     overlaysRequestPermission: overlays.requestPermission,
     setDisplayMessages: state.setDisplayMessages,
+    onFinalMessages: notifications.updateMessages,
   });
 
   useEffect(() => {

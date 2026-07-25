@@ -1,10 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 import { matchesRule } from "../permissions/rules.js";
+import {
+  PERMISSION_CANCELLED,
+} from "../permissions/permissionMessages.js";
 import type { PermissionResult } from "../types/permissions.js";
 import type { QuestionOption } from "../types/questions.js";
 import type { DiffPreview } from "../utils/diffLines.js";
 
-export const PERMISSION_CANCELLED = "permission cancelled";
+export { PERMISSION_CANCELLED } from "../permissions/permissionMessages.js";
 
 export const permissionCancelledResult = (): PermissionResult => ({
   granted: false,
@@ -93,6 +96,12 @@ export const cancelAllPermissions = (queue: readonly PendingPermission[]): void 
   const denied = permissionCancelledResult();
   for (const entry of queue) {
     entry.resolve(denied);
+  }
+};
+
+export const grantAllPermissions = (queue: readonly PendingPermission[]): void => {
+  for (const entry of queue) {
+    entry.resolve({ granted: true });
   }
 };
 

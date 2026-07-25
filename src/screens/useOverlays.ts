@@ -5,6 +5,7 @@ import {
   cancelAllPermissions,
   createPermissionResolver,
   createQuestionResolver,
+  grantAllPermissions,
   resolvePermissionHead,
   settleQuestionAnswer,
   settleQuestionCancel,
@@ -28,6 +29,7 @@ export type OverlayController = OverlayState & {
   resolveQuestion: (answer: string) => void;
   cancelQuestion: () => void;
   cancelPermissions: () => void;
+  grantPermissions: () => void;
   isPickerOpen: boolean;
 };
 
@@ -66,6 +68,12 @@ export const useOverlays = (): OverlayController => {
     setPermissionQueue([]);
   }, []);
 
+  const grantPermissions = useCallback((): void => {
+    const queue = permissionQueueRef.current;
+    grantAllPermissions(queue);
+    setPermissionQueue([]);
+  }, []);
+
   const isPickerOpen =
     permissionQueue.length > 0 ||
     pendingQuestion !== null ||
@@ -85,6 +93,7 @@ export const useOverlays = (): OverlayController => {
     resolveQuestion,
     cancelQuestion,
     cancelPermissions,
+    grantPermissions,
     isPickerOpen,
   };
 };

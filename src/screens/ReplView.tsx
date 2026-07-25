@@ -114,6 +114,7 @@ export const ReplView = ({
           onQueue={query.queueInput}
           onSubmit={onSubmit}
           onExitRequest={onExit}
+          onInterrupt={onCancelTurn}
         />
       }
     />

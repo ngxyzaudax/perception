@@ -1,6 +1,11 @@
 import type { AnyToolDefinition, ToolRegistry, ToolUseContext } from "../Tool.js";
 import { getTool } from "../Tool.js";
 import type { PermissionContext } from "../permissions/checkPermission.js";
+import {
+  formatUserPermissionReject,
+  PERMISSION_CANCELLED,
+  USER_PERMISSION_DENIED,
+} from "../permissions/permissionMessages.js";
 import type { Settings } from "../schemas/settings.js";
 import type { ChatMessage, QueryEvent, ToolCall } from "../types/messages.js";
 import { runHookEvent } from "../services/hooks/runHooks.js";
@@ -64,19 +69,38 @@ export const executeToolCall = async (input: {
   }
   input.onEvent({ type: "tool_start", name: tool.name, input: parsedInput });
   input.onEvent({ type: "permission_request", toolName: tool.name, summary });
-  const granted = await resolvePermission(tool, parsedInput, toolContext, {
+  const permission = await resolvePermission(tool, parsedInput, toolContext, {
     permissionContext: input.permissionContext,
     runtimeExtras: input.runtimeExtras,
     signal: input.signal,
   });
-  if (!granted) {
-    input.onEvent({ type: "tool_end", name: tool.name, output: "permission denied", isError: true });
-    return buildToolMessage(input.call, "permission denied", tool.name, summary, undefined, true);
+  if (!permission.granted) {
+    return deniedToolMessage(input, tool.name, summary, permission.reason);
   }
   if (isAborted(input.signal)) {
     return abortedToolMessage(input.call, tool.name);
   }
   return executeGrantedTool(tool, parsedInput, toolContext, input.call, hooksConfig, hookCwd, input.onEvent, input.signal);
+};
+
+const deniedToolMessage = (
+  input: {
+    call: ToolCall;
+    signal?: AbortSignal;
+    onEvent: (event: QueryEvent) => void;
+  },
+  toolName: string,
+  summary: string,
+  reason: string,
+): ChatMessage => {
+  if (isAborted(input.signal) || reason === PERMISSION_CANCELLED) {
+    input.onEvent({ type: "tool_end", name: toolName, output: ABORTED_TOOL_MESSAGE, isError: true });
+    return abortedToolMessage(input.call, toolName);
+  }
+  const content =
+    reason === USER_PERMISSION_DENIED ? formatUserPermissionReject() : reason;
+  input.onEvent({ type: "tool_end", name: toolName, output: content, isError: true });
+  return buildToolMessage(input.call, content, toolName, summary, undefined, true);
 };
 
 const executeGrantedTool = async (

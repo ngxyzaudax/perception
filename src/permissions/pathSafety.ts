@@ -26,9 +26,12 @@ export const isInsideRoot = (absolutePath: string, root: string): boolean => {
   return rel === "" || (!rel.startsWith(`..${sep}`) && rel !== ".." && !rel.startsWith(".."));
 };
 
+const PERCEPTION_DIR = `${sep}.perception`;
+const PERCEPTION_WORKTREES = `${PERCEPTION_DIR}${sep}worktrees`;
+
 const SENSITIVE_SUFFIXES = [
   `${sep}.git`,
-  `${sep}.perception`,
+  PERCEPTION_DIR,
   `${sep}.ssh`,
   `${sep}.gnupg`,
 ];
@@ -45,13 +48,28 @@ const SENSITIVE_BASENAMES = new Set([
   "authorized_keys",
 ]);
 
+export const isPerceptionWorktreePath = (absolutePath: string): boolean => {
+  const resolved = resolve(absolutePath);
+  return (
+    resolved.includes(`${PERCEPTION_WORKTREES}${sep}`) || resolved.endsWith(PERCEPTION_WORKTREES)
+  );
+};
+
 export const isSensitivePath = (absolutePath: string): boolean => {
   const resolved = resolve(absolutePath);
+  const inWorktree = isPerceptionWorktreePath(resolved);
   const homePerception = resolve(homedir(), ".perception");
-  if (isInsideRoot(resolved, homePerception)) {
+  if (!inWorktree && isInsideRoot(resolved, homePerception)) {
     return true;
   }
-  if (SENSITIVE_SUFFIXES.some((suffix) => resolved.includes(suffix + sep) || resolved.endsWith(suffix))) {
+  if (
+    SENSITIVE_SUFFIXES.some((suffix) => {
+      if (suffix === PERCEPTION_DIR && inWorktree) {
+        return false;
+      }
+      return resolved.includes(`${suffix}${sep}`) || resolved.endsWith(suffix);
+    })
+  ) {
     return true;
   }
   const base = resolved.split(sep).pop() ?? "";

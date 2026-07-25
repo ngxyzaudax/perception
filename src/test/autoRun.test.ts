@@ -6,8 +6,11 @@ import {
   nextAutoRunMode,
   parseAutoRunArg,
   resolveAutoRunMode,
+  applyAutoRunToggle,
 } from "../screens/autoRunToggle.js";
+import { grantAllPermissions } from "../screens/permissionResolver.js";
 import { filterCommandCompletions, findCommand, listCommands } from "../commands/registry.js";
+import type { Settings } from "../schemas/settings.js";
 
 describe("auto-run toggle helpers", () => {
   it("detects auto-run from permission mode", () => {
@@ -48,6 +51,62 @@ describe("auto-run toggle helpers", () => {
       "auto-run enabled: permission prompts skipped",
     );
     assert.equal(autoRunStatusText("default"), "auto-run disabled: mode default");
+  });
+
+  it("grants pending permissions when enabling auto-run", () => {
+    const settings = { permissionMode: "default" } as Settings;
+    let enabledCalls = 0;
+    let liveSettings = settings;
+    applyAutoRunToggle({
+      permissionMode: "default",
+      liveSettings,
+      updatePermissionMode: () => undefined,
+      setLiveSettings: (next) => {
+        liveSettings = next;
+      },
+      appendStatusLine: () => undefined,
+      persistSettings: () => undefined,
+      onEnabled: () => {
+        enabledCalls += 1;
+      },
+    });
+    assert.equal(enabledCalls, 1);
+    assert.equal(liveSettings.permissionMode, "bypassPermissions");
+  });
+
+  it("does not grant pending permissions when disabling auto-run", () => {
+    let enabledCalls = 0;
+    applyAutoRunToggle({
+      permissionMode: "bypassPermissions",
+      liveSettings: { permissionMode: "bypassPermissions" } as Settings,
+      updatePermissionMode: () => undefined,
+      setLiveSettings: () => undefined,
+      appendStatusLine: () => undefined,
+      persistSettings: () => undefined,
+      onEnabled: () => {
+        enabledCalls += 1;
+      },
+    });
+    assert.equal(enabledCalls, 0);
+  });
+});
+
+describe("grant pending permissions", () => {
+  it("resolves all queued permission prompts as granted", () => {
+    const results: boolean[] = [];
+    grantAllPermissions([
+      {
+        toolName: "Bash",
+        summary: "echo a",
+        resolve: (result) => results.push(result.granted),
+      },
+      {
+        toolName: "Bash",
+        summary: "echo b",
+        resolve: (result) => results.push(result.granted),
+      },
+    ]);
+    assert.deepEqual(results, [true, true]);
   });
 });
 

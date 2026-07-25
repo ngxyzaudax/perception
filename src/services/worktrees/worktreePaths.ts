@@ -24,4 +24,4 @@ export const worktreesDirectory = (gitRoot: string): string =>
 export const worktreePathFor = (gitRoot: string, slug: string): string =>
   join(worktreesDirectory(gitRoot), flattenSlug(slug));
 
-export const AGENT_WORKTREE_PATTERN = /^agent-[a-z0-9]+-[a-z0-9]+$/;
+export const AGENT_WORKTREE_PATTERN = /^(agent|cursor)-[a-z0-9]+-[a-z0-9]+$/;

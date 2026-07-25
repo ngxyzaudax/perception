@@ -2,7 +2,9 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { buildTool } from "../Tool.js";
 import { stopAgent } from "../services/agents/agentLifecycle.js";
+import { stopCursorAgent } from "../services/cursor/stopCursorAgent.js";
 import { getAgentTask, getAgentTaskByIdOrName } from "../state/agentTasks.js";
+import { getCursorAgentTaskByIdOrAgentId } from "../state/cursorAgentTasks.js";
 import { getTask, updateTask } from "../state/backgroundTasks.js";
 
 const inputSchema = z.object({
@@ -16,6 +18,10 @@ export const TaskStopTool = buildTool({
   isReadOnly: () => false,
   summarize: (input) => input.task_id,
   call: async (input) => {
+    const cursor = getCursorAgentTaskByIdOrAgentId(input.task_id);
+    if (cursor) {
+      return stopCursorAgent(cursor.id);
+    }
     const agent = getAgentTask(input.task_id) ?? getAgentTaskByIdOrName(input.task_id);
     if (agent) {
       return stopAgent(agent.id);

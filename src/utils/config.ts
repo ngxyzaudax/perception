@@ -10,6 +10,7 @@ export const loadSettings = async (): Promise<Settings> => {
     baseUrl: process.env.PERCEPTION_BASE_URL,
     model: process.env.PERCEPTION_MODEL,
     apiKey: process.env.PERCEPTION_API_KEY,
+    cursorApiKey: process.env.CURSOR_API_KEY,
     permissionMode: process.env.PERCEPTION_PERMISSION_MODE as Settings["permissionMode"],
     webSearchUrls: parseUrlList(process.env.PERCEPTION_WEB_SEARCH_URLS),
   };

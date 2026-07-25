@@ -18,6 +18,7 @@ export type QueryRuntimeExtras = {
   coordinatorMode?: boolean;
   cwd?: string;
   agentScope?: string;
+  onUserPermissionReject?: () => void;
 };
 
 export type QueryInput = {
