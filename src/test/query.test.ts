@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { z } from "zod";
-import { DEFAULT_MAX_TURNS } from "../query/queryEngine.js";
 import { partitionToolCalls } from "../query/partitionToolCalls.js";
 import { buildTool } from "../Tool.js";
 import { createToolRegistry } from "../tools.js";
@@ -9,10 +8,6 @@ import { createStreamingDisplay } from "../terminal/streamDisplay.js";
 import { compactToolOutput } from "../utils/toolDisplay.js";
 
 describe("query engine", () => {
-  it("uses default max turn limit", () => {
-    assert.equal(DEFAULT_MAX_TURNS, 100);
-  });
-
   it("partitions read-only and mutating tool batches", () => {
     const readTool = buildTool({
       name: "Read",

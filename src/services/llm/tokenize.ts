@@ -107,17 +107,8 @@ export const messageText = (message: ChatMessage): string => {
 export const countMessagesTokens = async (
   settings: Settings,
   messages: ChatMessage[],
-): Promise<number | null> => {
-  let total = 0;
-  for (const message of messages) {
-    const count = await countTextTokens(settings, messageText(message));
-    if (count === null) {
-      return null;
-    }
-    total += count;
-  }
-  return total;
-};
+): Promise<number | null> =>
+  countTextTokens(settings, messages.map(messageText).join("\n"));
 
 export const estimateOrCountTokens = async (
   settings: Settings,

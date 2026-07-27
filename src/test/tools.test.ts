@@ -42,7 +42,7 @@ describe("tools", () => {
     assert.ok(lines.some((line) => line.type === "add"));
   });
 
-  it("registers background shell tasks", () => {
+  it("registers background shell tasks without encouraging polling", async () => {
     registerTask({
       id: "task-demo",
       command: "sleep 1",
@@ -54,6 +54,12 @@ describe("tools", () => {
     });
     assert.ok(getTask("task-demo"));
     assert.match(formatTaskList("session-demo"), /task-demo/);
+    const { TaskOutputTool } = await import("../tools/TaskOutputTool.js");
+    const output = await TaskOutputTool.call(
+      { task_id: "task-demo" },
+      { cwd: process.cwd(), abortSignal: new AbortController().signal },
+    );
+    assert.match(output, /do not poll/);
   });
 
   it("edits notebook cells", async () => {

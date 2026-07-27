@@ -35,10 +35,14 @@ describe("print output", () => {
       { role: "assistant", content: "final answer" },
     ];
     assert.equal(finalAssistantText(messages), "final answer");
-    const parsed = JSON.parse(formatJsonResult(messages)) as {
+    const parsed = JSON.parse(
+      formatJsonResult({ messages, reason: "completed", turnCount: 2 }),
+    ) as {
+      subtype: string;
       result: string;
       messages: ChatMessage[];
     };
+    assert.equal(parsed.subtype, "success");
     assert.equal(parsed.result, "final answer");
     assert.equal(parsed.messages.length, 3);
   });

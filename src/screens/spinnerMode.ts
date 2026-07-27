@@ -1,11 +1,26 @@
 import type { QueryEvent } from "../types/messages.js";
 
-export type SpinnerMode = "thinking" | "responding" | "tool-use";
+export type SpinnerMode =
+  | "preparing"
+  | "compacting"
+  | "requesting"
+  | "thinking"
+  | "responding"
+  | "tool-use";
 
 export const nextSpinnerMode = (
   current: SpinnerMode,
   eventType: QueryEvent["type"],
 ): SpinnerMode => {
+  if (eventType === "preparing") {
+    return "preparing";
+  }
+  if (eventType === "compacting") {
+    return "compacting";
+  }
+  if (eventType === "requesting") {
+    return "requesting";
+  }
   if (eventType === "reasoning_delta") {
     return "thinking";
   }
@@ -22,6 +37,15 @@ export const nextSpinnerMode = (
 };
 
 export const spinnerVerb = (mode: SpinnerMode): string => {
+  if (mode === "preparing") {
+    return "Preparing";
+  }
+  if (mode === "compacting") {
+    return "Compacting";
+  }
+  if (mode === "requesting") {
+    return "Requesting";
+  }
   if (mode === "responding") {
     return "Responding";
   }

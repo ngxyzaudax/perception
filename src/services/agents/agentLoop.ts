@@ -63,6 +63,7 @@ export const runAgentLoop = async (
         agent,
         systemPromptOverride: systemPrompt,
         model: current.model,
+        maxTurns: current.maxTurns,
         transcriptPath: current.transcriptPath,
         suppressStream,
       });

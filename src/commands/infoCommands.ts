@@ -2,12 +2,10 @@ import { loadMemory } from "../context/memory.js";
 import { createLlmClient, resolveModel } from "../services/llm/client.js";
 import { runDoctor } from "../services/doctor/runDoctor.js";
 import { formatMcpStatus, getMcpStatuses, reconnectMcpServer } from "../services/mcp/mcpManager.js";
-import { getLoadedAgents } from "../tools/AgentTool.js";
 import { getUsage } from "../state/usage.js";
 import { formatTokensReport } from "../utils/tokens.js";
 import { formatContextReport } from "../screens/contextReport.js";
 import { loadGitDiff } from "../screens/gitDiff.js";
-import { formatHelp } from "../screens/helpText.js";
 import { formatPlanStatus } from "../screens/planStatus.js";
 import type { Command } from "./types.js";
 
@@ -79,15 +77,6 @@ export const infoCommands: Command[] = [
       }
       return { type: "status", content: formatMcpStatus(getMcpStatuses()), title: "MCP" };
     },
-  },
-  {
-    name: "/help",
-    description: "Show available commands",
-    execute: async (context) => ({
-      type: "status",
-      content: formatHelp(context.skills, getLoadedAgents()),
-      title: "Help",
-    }),
   },
   {
     name: "/doctor",

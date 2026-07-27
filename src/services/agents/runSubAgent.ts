@@ -8,6 +8,7 @@ export type SubAgentInput = {
   runtime: ToolRuntime;
   signal: AbortSignal;
   agent?: AgentDefinition;
+  maxTurns?: number;
 };
 
 export const runSubAgent = async (input: SubAgentInput): Promise<string> => {
@@ -17,6 +18,7 @@ export const runSubAgent = async (input: SubAgentInput): Promise<string> => {
     runtime: input.runtime,
     signal: input.signal,
     agent: input.agent,
+    maxTurns: input.maxTurns,
   });
   return turn.text;
 };

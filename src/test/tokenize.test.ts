@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   calibratedCharsPerToken,
+  countMessagesTokens,
   countTextTokens,
   estimateOrCountTokens,
   messageText,
@@ -47,6 +48,29 @@ describe("tokenize", () => {
       toolCalls: [{ id: "1", name: "Bash", arguments: '{"command":"ls"}' }],
     };
     assert.ok(messageText(message).includes('Bash{"command":"ls"}'));
+  });
+
+  it("counts an entire history with one tokenize request", async () => {
+    resetTokenizeStateForTests();
+    const originalFetch = globalThis.fetch;
+    let requests = 0;
+    globalThis.fetch = async () => {
+      requests += 1;
+      return new Response(JSON.stringify({ count: 3 }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    try {
+      const count = await countMessagesTokens(settingsSchema.parse({}), [
+        { role: "user", content: "first" },
+        { role: "assistant", content: "second" },
+      ]);
+      assert.equal(count, 3);
+      assert.equal(requests, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("uses the default ratio before calibration", () => {

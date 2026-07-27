@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { listCommandCompletions } from "../commands/registry.js";
 import { parseConfigCommand } from "../screens/configCommand.js";
 import { formatHelp } from "../screens/helpText.js";
 import { formatContextReport } from "../screens/contextReport.js";
@@ -81,8 +82,9 @@ Review $ARGUMENTS in ${"${PERCEPTION_SKILL_DIR}"}`,
 describe("screens", () => {
   it("lists help and config commands", async () => {
     const settings = await loadSettings();
-    const help = formatHelp([]);
-    assert.match(help, /\/doctor/);
+    const help = formatHelp(listCommandCompletions());
+    assert.match(help, /\/doctor - /);
+    assert.match(help, /\/auto-run - /);
     const show = parseConfigCommand("/config", settings);
     assert.equal(show.type, "show");
     const invalid = parseConfigCommand("/config unknown value", settings);
@@ -92,8 +94,8 @@ describe("screens", () => {
   it("formats context report", () => {
     const context = formatContextReport(3, 120);
     assert.match(context, /messages: 3/);
-    const help = formatHelp([]);
-    assert.match(help, /\/tasks/);
+    const help = formatHelp(listCommandCompletions());
+    assert.match(help, /\/tasks - /);
   });
 
   it("runs doctor checks", async () => {

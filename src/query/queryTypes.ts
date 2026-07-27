@@ -33,4 +33,24 @@ export type QueryInput = {
   onEvent: (event: QueryEvent) => void;
 };
 
-export type QueryResult = { messages: ChatMessage[] };
+export type QueryTerminalReason =
+  | "completed"
+  | "aborted"
+  | "model_error"
+  | "permission_rejected"
+  | "max_turns";
+
+type StandardQueryResult = {
+  messages: ChatMessage[];
+  reason: Exclude<QueryTerminalReason, "max_turns">;
+  turnCount: number;
+};
+
+type MaxTurnsQueryResult = {
+  messages: ChatMessage[];
+  reason: "max_turns";
+  turnCount: number;
+  maxTurns: number;
+};
+
+export type QueryResult = StandardQueryResult | MaxTurnsQueryResult;

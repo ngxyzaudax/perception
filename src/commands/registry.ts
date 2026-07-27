@@ -1,3 +1,5 @@
+import { formatHelp } from "../screens/helpText.js";
+import { getLoadedAgents } from "../tools/AgentTool.js";
 import { controlCommands } from "./controlCommands.js";
 import { infoCommands } from "./infoCommands.js";
 import { queryCommands } from "./queryCommands.js";
@@ -8,12 +10,23 @@ import type { Command, CommandCompletion } from "./types.js";
 
 export { registerSkillCommands } from "./skillRegistry.js";
 
+const helpCommand: Command = {
+  name: "/help",
+  description: "Show available commands",
+  execute: async () => ({
+    type: "status",
+    content: formatHelp(listCommandCompletions(), getLoadedAgents()),
+    title: "Help",
+  }),
+};
+
 export const listCommands = (): Command[] => [
   ...sessionCommands,
   ...infoCommands,
   ...taskCommands,
   ...controlCommands,
   ...queryCommands,
+  helpCommand,
 ];
 
 export const findCommand = (input: string): Command | undefined => {

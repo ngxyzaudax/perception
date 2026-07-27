@@ -30,6 +30,7 @@ export type StartAgentInput = {
   signal: AbortSignal;
   agent?: AgentDefinition;
   model?: string;
+  maxTurns?: number;
   runInBackground: boolean;
   name?: string;
   teamName?: string;
@@ -61,6 +62,7 @@ export const startAgent = async (input: StartAgentInput): Promise<string> => {
     messages: [{ role: "user", content: prompt }],
     systemPromptOverride: input.agent?.systemPrompt,
     model: input.model ?? input.agent?.model,
+    maxTurns: input.maxTurns ?? input.agent?.maxTurns,
     pendingMessages: [],
     abortController,
     transcriptPath,

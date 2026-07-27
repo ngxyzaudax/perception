@@ -43,7 +43,8 @@ export const isDangerousBashCommand = (command: string): boolean => {
 
 export const BashTool = buildTool({
   name: "Bash",
-  description: "Execute a bash shell command in the working directory",
+  description:
+    "Execute a shell command. Background commands send completion notifications; do not poll them.",
   inputSchema,
   isReadOnly: () => false,
   needsExplicitPermission: (input) => isDangerousBashCommand(input.command),

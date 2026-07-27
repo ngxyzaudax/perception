@@ -1,48 +1,22 @@
+import type { CommandCompletion } from "../commands/types.js";
 import type { AgentDefinition } from "../services/agents/loadAgents.js";
-import type { SkillDefinition } from "../skills/skillSchema.js";
 
-const builtInCommands = [
-  "/exit",
-  "/clear",
-  "/model",
-  "/tokens",
-  "/permissions",
-  "/resume",
-  "/memory",
-  "/compact",
-  "/mcp",
-  "/help",
-  "/doctor",
-  "/config",
-  "/plan",
-  "/plan-approve",
-  "/tasks",
-  "/agents",
-  "/diff",
-  "/context",
-  "/rewind",
-  "/init",
-  "/export",
-  "/branch",
-  "/coordinator",
-  "/commit",
-  "/review",
-];
+const formatCommandLine = (command: CommandCompletion): string =>
+  `- ${command.name} - ${command.description}`;
+
+const formatAgentLine = (agent: AgentDefinition): string =>
+  `- ${agent.name} - ${agent.description}`;
 
 export const formatHelp = (
-  skills: SkillDefinition[],
+  commands: CommandCompletion[],
   agents: AgentDefinition[] = [],
 ): string => {
-  const skillLines = skills.map((skill) => `/${skill.commandName} - ${skill.description}`);
-  const agentLines = agents.map((agent) => `${agent.name} - ${agent.description}`);
+  const agentLines = agents.map(formatAgentLine);
   return [
-    "Built-in commands:",
-    ...builtInCommands.map((command) => `- ${command}`),
-    "",
-    "Skills:",
-    ...(skillLines.length > 0 ? skillLines.map((line) => `- ${line}`) : ["- none loaded"]),
+    "Commands:",
+    ...commands.map(formatCommandLine),
     "",
     "Agents:",
-    ...(agentLines.length > 0 ? agentLines.map((line) => `- ${line}`) : ["- none loaded"]),
+    ...(agentLines.length > 0 ? agentLines : ["- none loaded"]),
   ].join("\n");
 };

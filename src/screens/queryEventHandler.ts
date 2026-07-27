@@ -58,11 +58,17 @@ export const createQueryEventHandler = (
     if (event.type === "usage") {
       pushStatus(`${event.tokensPerSecond.toFixed(1)} tok/s`);
     }
+    if (event.type === "preparing") {
+      args.setStatusImmediate("");
+    }
     if (event.type === "status") {
       args.setStatusImmediate(event.message);
     }
     if (event.type === "error") {
       args.setStatusImmediate(event.message);
+    }
+    if (event.type === "max_turns_reached") {
+      args.setStatusImmediate(`Reached maximum number of turns (${event.maxTurns})`);
     }
   };
 };

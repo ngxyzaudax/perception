@@ -22,3 +22,9 @@ From another directory:
 | `pnpm start` / `pnpm dev` | Interactive REPL |
 | `pnpm typecheck` | TypeScript check |
 | `pnpm test` | Unit tests |
+
+## Turn limits
+
+Queries are unlimited unless a positive turn limit is configured. Print mode accepts
+`--max-turns <turns>`. Custom agent frontmatter accepts `maxTurns`, and the Agent
+tool accepts a `max_turns` override.

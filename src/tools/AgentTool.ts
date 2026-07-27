@@ -17,6 +17,12 @@ const inputSchema = z.object({
       "Agent type: built-in (explore, plan, general-purpose, verification) or a custom agent from .perception/agents",
     ),
   model: z.string().optional().describe("Optional model id override for the sub-agent"),
+  max_turns: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Maximum number of agentic turns before stopping"),
   run_in_background: z
     .boolean()
     .optional()
@@ -66,6 +72,7 @@ export const AgentTool = buildTool({
       signal: context.abortSignal,
       agent,
       model: input.model,
+      maxTurns: input.max_turns,
       runInBackground,
       name: input.name,
       teamName: input.team_name,

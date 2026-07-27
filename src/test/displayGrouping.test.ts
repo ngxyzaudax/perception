@@ -40,6 +40,9 @@ describe("display grouping", () => {
 
 describe("spinner mode machine", () => {
   it("transitions between modes by event type", () => {
+    assert.equal(nextSpinnerMode("thinking", "preparing"), "preparing");
+    assert.equal(nextSpinnerMode("preparing", "compacting"), "compacting");
+    assert.equal(nextSpinnerMode("compacting", "requesting"), "requesting");
     assert.equal(nextSpinnerMode("thinking", "text_delta"), "responding");
     assert.equal(nextSpinnerMode("responding", "tool_start"), "tool-use");
     assert.equal(nextSpinnerMode("tool-use", "reasoning_delta"), "thinking");
@@ -49,6 +52,9 @@ describe("spinner mode machine", () => {
   });
 
   it("maps modes to verbs", () => {
+    assert.equal(spinnerVerb("preparing"), "Preparing");
+    assert.equal(spinnerVerb("compacting"), "Compacting");
+    assert.equal(spinnerVerb("requesting"), "Requesting");
     assert.equal(spinnerVerb("thinking"), "Thinking");
     assert.equal(spinnerVerb("responding"), "Responding");
     assert.equal(spinnerVerb("tool-use"), "Running tools");

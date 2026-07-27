@@ -2,11 +2,16 @@ import { dirname } from "node:path";
 import { appendFile, mkdir } from "node:fs/promises";
 import { execa } from "execa";
 import {
+  getTask,
   getActiveSessionId,
   registerTask,
   updateTask,
   type BackgroundTask,
 } from "../../state/backgroundTasks.js";
+import {
+  enqueueNotification,
+  formatBackgroundTaskNotification,
+} from "../../state/agentNotifications.js";
 import { getCwd } from "../../utils/cwd.js";
 import { createTaskId, taskOutputPath } from "./taskPaths.js";
 
@@ -53,15 +58,33 @@ const streamBackgroundOutput = async (
   taskId: string,
   outputPath: string,
 ): Promise<void> => {
+  let pendingWrites = Promise.resolve();
+  const queueWrite = (chunk: Buffer): void => {
+    pendingWrites = pendingWrites.then(() => appendFile(outputPath, chunk));
+  };
   subprocess.stdout?.on("data", (chunk: Buffer) => {
-    void appendFile(outputPath, chunk);
+    queueWrite(chunk);
   });
   subprocess.stderr?.on("data", (chunk: Buffer) => {
-    void appendFile(outputPath, chunk);
+    queueWrite(chunk);
   });
   const result = await subprocess;
-  updateTask(taskId, {
-    status: result.exitCode === 0 ? "completed" : "failed",
-    exitCode: result.exitCode ?? 1,
+  await pendingWrites.catch(() => undefined);
+  completeBackgroundTask(taskId, outputPath, result.exitCode ?? 1);
+};
+
+const completeBackgroundTask = (
+  taskId: string,
+  outputPath: string,
+  exitCode: number,
+): void => {
+  if (getTask(taskId)?.status === "stopped") {
+    return;
+  }
+  const status = exitCode === 0 ? "completed" : "failed";
+  updateTask(taskId, { status, exitCode });
+  enqueueNotification({
+    content: formatBackgroundTaskNotification({ taskId, status, exitCode, outputPath }),
+    agentId: taskId,
   });
 };

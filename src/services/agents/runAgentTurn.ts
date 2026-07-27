@@ -4,6 +4,7 @@ import type { ToolRegistry, ToolRuntime } from "../../Tool.js";
 import type { AgentDefinition } from "./loadAgents.js";
 import type { ChatMessage } from "../../types/messages.js";
 import { filterSubAgentRegistry } from "./filterSubAgentRegistry.js";
+import type { QueryResult } from "../../query/queryTypes.js";
 
 export type AgentTurnInput = {
   description: string;
@@ -13,13 +14,13 @@ export type AgentTurnInput = {
   agent?: AgentDefinition;
   systemPromptOverride?: string;
   model?: string;
+  maxTurns?: number;
   transcriptPath?: string;
   suppressStream?: boolean;
 };
 
-export type AgentTurnResult = {
+export type AgentTurnResult = QueryResult & {
   text: string;
-  messages: ChatMessage[];
 };
 
 export const runAgentTurn = async (input: AgentTurnInput): Promise<AgentTurnResult> => {
@@ -37,6 +38,7 @@ export const runAgentTurn = async (input: AgentTurnInput): Promise<AgentTurnResu
     permissionContext: input.runtime.permissionContext,
     signal: input.signal,
     systemPromptOverride: input.systemPromptOverride,
+    maxTurns: input.maxTurns ?? input.agent?.maxTurns,
     runtimeExtras: {
       sessionId: input.runtime.sessionId,
       hooksConfig: input.runtime.hooksConfig,
@@ -52,8 +54,11 @@ export const runAgentTurn = async (input: AgentTurnInput): Promise<AgentTurnResu
   const lastAssistant = [...result.messages]
     .reverse()
     .find((message) => message.role === "assistant");
-  const text = lastAssistant?.content ?? "Agent produced no response";
-  return { text, messages: result.messages };
+  const text =
+    result.reason === "max_turns"
+      ? `Reached maximum number of turns (${result.maxTurns})`
+      : lastAssistant?.content ?? "Agent produced no response";
+  return { ...result, text };
 };
 
 const forwardAgentEvent = (

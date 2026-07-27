@@ -1,6 +1,7 @@
 import { buildSystemPrompt } from "../context/systemPrompt.js";
 import { createLlmClient, resolveModel } from "../services/llm/client.js";
 import { isUserPermissionRejectContent } from "../permissions/permissionMessages.js";
+import { getUsage } from "../state/usage.js";
 import type { ChatMessage } from "../types/messages.js";
 import { createStreamingToolRunner } from "./streamingToolRunner.js";
 import { prepareWorking } from "./midQueryCompact.js";
@@ -12,37 +13,34 @@ import {
   MAX_EMPTY_TURN_RETRIES,
 } from "./queryRecovery.js";
 import type { QueryInput, QueryResult } from "./queryTypes.js";
+import {
+  createMaxTurnsResult,
+  emitMaxTurnsReached,
+  hasReachedTurnLimit,
+  nextAgenticTurn,
+} from "./turnLimits.js";
 
 export type { QueryInput, QueryResult, QueryRuntimeExtras } from "./queryTypes.js";
-
-const DEFAULT_MAX_TURNS = 100;
-
-export { DEFAULT_MAX_TURNS };
 
 export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
   const client = createLlmClient(input.settings);
   const resolved = await resolveModel(client, input.settings.model);
   const systemPrompt = input.systemPromptOverride ?? (await buildSystemPrompt(input.runtimeExtras?.cwd));
   const working: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...input.messages];
-  const maxTurns = input.maxTurns ?? DEFAULT_MAX_TURNS;
-  let turnCount = 0;
+  const maxTurns = input.maxTurns;
+  let turnCount = 1;
   let overflowRecoveryUsed = false;
   let reactiveCompactUsed = false;
-  let compactedAtRequestCount = -1;
+  let compactedAtRequestCount = getUsage().requestCount;
   let emptyTurnRetries = 0;
   let stopHookContinuations = 0;
   let compactFailures = 0;
 
   while (true) {
     if (input.signal?.aborted) {
-      return { messages: working.slice(1) };
+      return { messages: working.slice(1), reason: "aborted", turnCount };
     }
-    turnCount += 1;
-    if (turnCount > maxTurns) {
-      working.push({ role: "assistant", content: "Turn limit reached" });
-      input.onEvent({ type: "error", message: "Turn limit reached" });
-      return { messages: working.slice(1) };
-    }
+    input.onEvent({ type: "preparing" });
     const prepared = await prepareWorking({
       settings: input.settings,
       working,
@@ -50,10 +48,14 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       compactedAtRequestCount,
       compactFailures,
       sessionId: input.runtimeExtras?.sessionId,
+      signal: input.signal,
       onEvent: input.onEvent,
     });
     compactedAtRequestCount = prepared.compactedAtRequestCount;
     compactFailures = prepared.compactFailures;
+    if (input.signal?.aborted) {
+      return { messages: working.slice(1), reason: "aborted", turnCount };
+    }
     const toolRunner = createStreamingToolRunner({
       registry: input.registry,
       settings: input.settings,
@@ -62,6 +64,7 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       runtimeExtras: input.runtimeExtras,
       onEvent: input.onEvent,
     });
+    input.onEvent({ type: "requesting" });
     const assistant = await collectOrRecover({
       client,
       model: resolved.modelId,
@@ -86,7 +89,11 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       continue;
     }
     if (assistant === "abort" || assistant === "fail") {
-      return { messages: working.slice(1) };
+      return {
+        messages: working.slice(1),
+        reason: assistant === "fail" ? "model_error" : "aborted",
+        turnCount,
+      };
     }
     if (isEmptyTurn(assistant) && emptyTurnRetries < MAX_EMPTY_TURN_RETRIES) {
       emptyTurnRetries += 1;
@@ -111,21 +118,32 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
         continue;
       }
       input.onEvent({ type: "done" });
-      return { messages: working.slice(1) };
+      return { messages: working.slice(1), reason: "completed", turnCount };
     }
     emptyTurnRetries = 0;
     if (input.signal?.aborted) {
       working.push(...missingToolResults(assistant.message));
-      return { messages: working.slice(1) };
+      return { messages: working.slice(1), reason: "aborted", turnCount };
     }
     const toolMessages = await toolRunner.finish(assistant.toolCalls);
     working.push(...toolMessages);
-    if (
-      input.signal?.aborted ||
-      toolMessages.some((message) => isUserPermissionRejectContent(message.content))
-    ) {
+    const nextTurnCount = nextAgenticTurn(turnCount);
+    if (input.signal?.aborted) {
       working.push(...missingToolResults(assistant.message, toolMessages));
-      return { messages: working.slice(1) };
+      if (hasReachedTurnLimit(maxTurns, nextTurnCount)) {
+        emitMaxTurnsReached(maxTurns, nextTurnCount, input.onEvent);
+      }
+      return { messages: working.slice(1), reason: "aborted", turnCount };
     }
+    if (toolMessages.some((message) => isUserPermissionRejectContent(message.content))) {
+      working.push(...missingToolResults(assistant.message, toolMessages));
+      return { messages: working.slice(1), reason: "permission_rejected", turnCount };
+    }
+    if (hasReachedTurnLimit(maxTurns, nextTurnCount)) {
+      return createMaxTurnsResult(working.slice(1), maxTurns, nextTurnCount, input.onEvent);
+    }
+    reactiveCompactUsed = false;
+    overflowRecoveryUsed = false;
+    turnCount = nextTurnCount;
   }
 };

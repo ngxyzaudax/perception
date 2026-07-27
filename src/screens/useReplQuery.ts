@@ -37,6 +37,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
   const setPreparing = useCallback((value: boolean): void => {
     setPreparingState(value);
     if (value) {
+      setSpinnerMode("preparing");
       setQueryStartedAt(Date.now());
       return;
     }
@@ -80,7 +81,7 @@ export const useReplQuery = (registry: Parameters<typeof runQuery>[0]["registry"
       rateStatusRef.current("");
       setQueryStartedAt(Date.now());
       setBusy(true);
-      setSpinnerMode("thinking");
+      setSpinnerMode("preparing");
       const onEvent = createQueryEventHandler({
         appendText: streaming.appendText,
         appendThinking: streaming.appendThinking,

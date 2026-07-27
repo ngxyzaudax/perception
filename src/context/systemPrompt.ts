@@ -20,6 +20,7 @@ const BASE_PROMPT = [
   "- Use Read, Glob, and Grep for files and search instead of shell equivalents.",
   "- Use Edit and Write for file changes. Read a file before editing it.",
   "- Use Bash for shell commands. Run independent tool calls in parallel.",
+  "- Background commands send a completion notification. Do not sleep or poll TaskOutput while waiting.",
   "- Use the Agent tool for large searches or parallel subtasks. Built-in types: explore, plan, general-purpose, verification.",
   "- Use CursorAgent to hand substantial coding work to a durable Cursor agent with Cursor tools. Prefer local runtime; use cloud only when repo_url is on a connected remote.",
   "",

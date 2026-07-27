@@ -26,17 +26,23 @@ export const tryReactiveCompact = async (
   working: ChatMessage[],
   onEvent: (event: QueryEvent) => void,
   sessionId?: string,
+  signal?: AbortSignal,
 ): Promise<boolean> => {
+  onEvent({ type: "compacting" });
   onEvent({
     type: "status",
     message: "Context overflow detected. Compacting conversation and retrying request.",
   });
   try {
-    const compacted = await compactConversation(settings, working.slice(1));
+    const compacted = await compactConversation(settings, working.slice(1), signal);
     persistCompactSummary(sessionId, compacted);
     working.splice(0, working.length, working[0]!, ...compacted);
+    onEvent({ type: "status", message: "Conversation compacted. Retrying request." });
     return true;
   } catch (error) {
+    if (signal?.aborted) {
+      return false;
+    }
     onEvent({
       type: "status",
       message: `Reactive compaction failed: ${error instanceof Error ? error.message : "unknown error"}`,
@@ -111,8 +117,13 @@ export const collectOrRecover = async (args: {
     }
     if (isContextOverflowError(error) && !args.reactiveCompactUsed) {
       args.onReactiveCompact();
-      if (await tryReactiveCompact(args.settings, args.working, args.onEvent, args.sessionId)) {
+      if (
+        await tryReactiveCompact(args.settings, args.working, args.onEvent, args.sessionId, args.signal)
+      ) {
         return "retry";
+      }
+      if (args.signal?.aborted) {
+        return "abort";
       }
     }
     if (!args.overflowRecoveryUsed && isContextOverflowError(error)) {

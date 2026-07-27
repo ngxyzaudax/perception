@@ -28,6 +28,9 @@ export type ChatMessage =
     };
 
 export type QueryEvent =
+  | { type: "preparing" }
+  | { type: "compacting" }
+  | { type: "requesting" }
   | { type: "text_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
   | { type: "message_complete"; message: ChatMessage }
@@ -39,4 +42,5 @@ export type QueryEvent =
   | { type: "done" }
   | { type: "status"; message: string }
   | { type: "error"; message: string }
+  | { type: "max_turns_reached"; maxTurns: number; turnCount: number }
   | { type: "usage"; promptTokens: number; completionTokens: number; tokensPerSecond: number };

@@ -92,3 +92,18 @@ export const formatTaskNotification = (input: {
     .filter(Boolean)
     .join("\n");
 };
+
+export const formatBackgroundTaskNotification = (input: {
+  taskId: string;
+  status: "completed" | "failed";
+  exitCode: number;
+  outputPath: string;
+}): string =>
+  [
+    "<task-notification>",
+    `<task-id>${input.taskId}</task-id>`,
+    `<status>${input.status}</status>`,
+    `<summary>Background command ${input.status} with exit code ${input.exitCode}.</summary>`,
+    `<output-file>${input.outputPath}</output-file>`,
+    "</task-notification>",
+  ].join("\n");

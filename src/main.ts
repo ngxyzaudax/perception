@@ -1,11 +1,21 @@
 #!/usr/bin/env bun
 import { Command } from "@commander-js/extra-typings";
+import { InvalidArgumentError } from "commander";
 import { runPrintMode } from "./cli/print.js";
+import { parsePositiveTurnLimit } from "./query/turnLimits.js";
 import type { Settings } from "./schemas/settings.js";
 import { loadSettings } from "./utils/config.js";
 import { installCrashHandlers } from "./utils/crashLog.js";
 
 installCrashHandlers();
+
+const parseMaxTurns = (value: string): number => {
+  const maxTurns = parsePositiveTurnLimit(value);
+  if (maxTurns === undefined) {
+    throw new InvalidArgumentError("Expected a positive integer.");
+  }
+  return maxTurns;
+};
 
 const program = new Command()
   .name("perception")
@@ -17,6 +27,7 @@ const program = new Command()
     "Permission mode: default, plan, bypassPermissions",
   )
   .option("-p, --print <prompt>", "Run a single prompt headlessly and print the result")
+  .option("--max-turns <turns>", "Maximum agentic turns in print mode", parseMaxTurns)
   .option(
     "--output-format <format>",
     "Print output format: text, json, stream-json",
@@ -34,7 +45,12 @@ const program = new Command()
     if (options.print) {
       const { parseOutputFormat } = await import("./cli/printOutput.js");
       process.exit(
-        await runPrintMode(merged, options.print, parseOutputFormat(options.outputFormat)),
+        await runPrintMode(
+          merged,
+          options.print,
+          parseOutputFormat(options.outputFormat),
+          options.maxTurns,
+        ),
       );
     }
     const { launchRepl } = await import("./entrypoints/cli.js");

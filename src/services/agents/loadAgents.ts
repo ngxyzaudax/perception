@@ -4,6 +4,7 @@ import { parseFrontmatter } from "../../utils/frontmatter.js";
 import { perceptionHome } from "../sessions/sessionPaths.js";
 import { getCwd } from "../../utils/cwd.js";
 import { builtInAgents } from "./builtInAgents.js";
+import { parsePositiveTurnLimit } from "../../query/turnLimits.js";
 
 export type AgentDefinition = {
   name: string;
@@ -11,6 +12,7 @@ export type AgentDefinition = {
   systemPrompt: string;
   tools: string[];
   model?: string;
+  maxTurns?: number;
   filePath: string;
 };
 
@@ -69,6 +71,7 @@ const parseAgentFile = async (filePath: string): Promise<AgentDefinition | null>
       systemPrompt: parsed.body,
       tools,
       model: parsed.frontmatter.model,
+      maxTurns: parsePositiveTurnLimit(parsed.frontmatter.maxTurns),
       filePath,
     };
   } catch {

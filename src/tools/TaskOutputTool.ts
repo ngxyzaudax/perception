@@ -15,7 +15,8 @@ const MAX_OUTPUT_CHARS = 50000;
 
 export const TaskOutputTool = buildTool({
   name: "TaskOutput",
-  description: "Read output from a background shell task or agent transcript",
+  description:
+    "Read background output for an explicit progress check. Completion notifications arrive automatically.",
   inputSchema,
   isReadOnly: () => true,
   summarize: (input) => input.task_id,
@@ -85,6 +86,9 @@ export const TaskOutputTool = buildTool({
         `task: ${task.id}`,
         `status: ${task.status}`,
         `exit: ${task.exitCode ?? "-"}`,
+        task.status === "running"
+          ? "Completion notification will arrive automatically; do not poll."
+          : "",
         lines.slice(-tail).join("\n"),
       ].join("\n"),
     );

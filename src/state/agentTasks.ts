@@ -11,6 +11,7 @@ export type AgentTask = {
   messages: ChatMessage[];
   systemPromptOverride?: string;
   model?: string;
+  maxTurns?: number;
   pendingMessages: string[];
   abortController: AbortController;
   resultText?: string;

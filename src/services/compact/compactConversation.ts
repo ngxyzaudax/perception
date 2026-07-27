@@ -15,6 +15,7 @@ const COMPACT_INSTRUCTION =
 export const compactConversation = async (
   settings: Settings,
   messages: ChatMessage[],
+  signal?: AbortSignal,
 ): Promise<ChatMessage[]> => {
   if (messages.length === 0) {
     return messages;
@@ -33,14 +34,17 @@ export const compactConversation = async (
     sanitizeForSummary(shrinkOversizedToolMessages(messages)),
     budget,
   );
-  const response = await client.chat.completions.create({
-    model: resolved.modelId,
-    messages: [
-      ...toOpenAiMessages(prepared),
-      { role: "user", content: COMPACT_INSTRUCTION },
-    ],
-    stream: false,
-  });
+  const response = await client.chat.completions.create(
+    {
+      model: resolved.modelId,
+      messages: [
+        ...toOpenAiMessages(prepared),
+        { role: "user", content: COMPACT_INSTRUCTION },
+      ],
+      stream: false,
+    },
+    { signal },
+  );
   const summary = response.choices[0]?.message?.content?.trim();
   if (!summary) {
     throw new Error("Compaction produced empty summary");

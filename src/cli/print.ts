@@ -6,11 +6,13 @@ import { createToolRegistry } from "../tools.js";
 import type { ChatMessage, QueryEvent } from "../types/messages.js";
 import { formatEventLine, formatJsonResult } from "./printOutput.js";
 import type { PrintOutputFormat } from "./printOutput.js";
+import type { QueryResult } from "../query/queryTypes.js";
 
 export const runPrintMode = async (
   settings: Settings,
   prompt: string,
   outputFormat: PrintOutputFormat = "text",
+  maxTurns?: number,
 ): Promise<number> => {
   const { tools } = await connectMcpTools();
   const registry = createToolRegistry(tools);
@@ -29,10 +31,11 @@ export const runPrintMode = async (
         allowedDomains: settings.allowedDomains,
         additionalDirectories: settings.additionalDirectories,
       }),
+      maxTurns,
       onEvent: buildEventWriter(outputFormat),
     });
-    writeFinalOutput(outputFormat, result.messages);
-    return 0;
+    writeFinalOutput(outputFormat, result);
+    return result.reason === "completed" ? 0 : 1;
   } catch (error) {
     const message = error instanceof Error ? error.message : "query failed";
     process.stderr.write(`${message}\n`);
@@ -69,13 +72,15 @@ const buildEventWriter = (
 
 const writeFinalOutput = (
   outputFormat: PrintOutputFormat,
-  messages: ChatMessage[],
+  result: QueryResult,
 ): void => {
-  if (outputFormat === "json") {
-    process.stdout.write(`${formatJsonResult(messages)}\n`);
+  if (outputFormat === "json" || outputFormat === "stream-json") {
+    process.stdout.write(`${formatJsonResult(result)}\n`);
     return;
   }
-  if (outputFormat === "text") {
-    process.stdout.write("\n");
+  if (result.reason === "max_turns") {
+    process.stdout.write(`\nError: Reached max turns (${result.maxTurns})\n`);
+    return;
   }
+  process.stdout.write("\n");
 };

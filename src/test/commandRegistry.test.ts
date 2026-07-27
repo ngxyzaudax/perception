@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 import {
   filterCommandCompletions,
   findCommand,
+  listCommandCompletions,
   listCommands,
   registerSkillCommands,
 } from "../commands/registry.js";
+import { formatHelp } from "../screens/helpText.js";
 import { filterToolRegistry } from "../Tool.js";
 import { createToolRegistry } from "../tools.js";
 import { parseSkillFile } from "../skills/skillSchema.js";
@@ -47,6 +49,16 @@ describe("command registry", () => {
       !filterCommandCompletions("/hi").some((completion) => completion.name === "/hidden"),
     );
     registerSkillCommands([]);
+  });
+
+  it("formats help from the same sorted completions as autocomplete", () => {
+    const completions = listCommandCompletions();
+    const help = formatHelp(completions);
+    const names = completions.map((completion) => completion.name);
+    assert.deepEqual(names, [...names].sort((left, right) => left.localeCompare(right)));
+    for (const completion of completions) {
+      assert.ok(help.includes(`- ${completion.name} - ${completion.description}`));
+    }
   });
 });
 
