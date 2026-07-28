@@ -8,7 +8,7 @@ import {
 } from "../services/cursor/cursorAgentService.js";
 import type { AgentIsolation } from "../services/agents/agentLifecycle.js";
 
-const DEFAULT_MODEL = "composer-2.5";
+const DEFAULT_MODEL = "cursor-grok-4.5-high-fast";
 
 const inputSchema = z.object({
   description: z.string().describe("Short label for what the Cursor agent should do"),
@@ -17,7 +17,10 @@ const inputSchema = z.object({
     .enum(["local", "cloud"])
     .optional()
     .describe("Local runs against cwd; cloud clones a remote repo in a Cursor VM"),
-  model: z.string().optional().describe("Cursor model id, defaults to composer-2.5"),
+  model: z
+    .string()
+    .optional()
+    .describe("Cursor model id, defaults to cursor-grok-4.5-high-fast"),
   run_in_background: z
     .boolean()
     .optional()
