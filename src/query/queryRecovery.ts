@@ -13,13 +13,6 @@ import { isContextOverflowError } from "./contextOverflow.js";
 import { recoverFromOverflow } from "./contextBudget.js";
 
 export const MAX_STOP_HOOK_CONTINUATIONS = 3;
-export const MAX_EMPTY_TURN_RETRIES = 2;
-
-export const isEmptyTurn = (turn: {
-  message: ChatMessage;
-  toolCalls: unknown[];
-}): boolean =>
-  turn.toolCalls.length === 0 && turn.message.content.trim().length === 0;
 
 export const tryReactiveCompact = async (
   settings: Settings,

@@ -1,5 +1,6 @@
 import type { DisplayMessage } from "../../types/displayMessages.js";
 import { isStatusMessage } from "../../types/displayMessages.js";
+import { isEmptyAssistantContent } from "../../query/emptyAssistantTurn.js";
 import { isTaskNotification } from "../../state/parseTaskNotification.js";
 import { AssistantMessage } from "./AssistantMessage.js";
 import { NotificationMessage } from "./NotificationMessage.js";
@@ -22,11 +23,8 @@ export const renderDisplayMessage = (
     return <UserMessage key={`user-${index}`} content={message.content} />;
   }
   if (message.role === "assistant") {
-    if (message.content.trim().length === 0) {
-      if (message.toolCalls && message.toolCalls.length > 0) {
-        return null;
-      }
-      return <StatusMessage key={`assistant-${index}`} content="Model returned an empty response." title="Notice" />;
+    if (isEmptyAssistantContent(message.content)) {
+      return null;
     }
     return <AssistantMessage key={`assistant-${index}`} content={message.content} />;
   }

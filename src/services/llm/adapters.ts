@@ -5,6 +5,10 @@ import type {
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { AnyToolDefinition } from "../../Tool.js";
 import type { ChatMessage, ToolCall } from "../../types/messages.js";
+import {
+  ensureNonEmptyAssistantContent,
+  NO_CONTENT_MESSAGE,
+} from "../../query/emptyAssistantTurn.js";
 
 export const toOpenAiTools = (tools: AnyToolDefinition[]): ChatCompletionTool[] =>
   tools.map((tool) => ({
@@ -21,7 +25,8 @@ export const toOpenAiTools = (tools: AnyToolDefinition[]): ChatCompletionTool[] 
 
 export const toOpenAiMessages = (
   messages: ChatMessage[],
-): ChatCompletionMessageParam[] => messages.flatMap(convertMessage);
+): ChatCompletionMessageParam[] =>
+  ensureNonEmptyAssistantContent(messages).flatMap(convertMessage);
 
 const convertMessage = (
   message: ChatMessage,
@@ -41,12 +46,13 @@ const convertMessage = (
       },
     ];
   }
+  const toolCalls = message.toolCalls ?? [];
   const assistantMessage: Extract<ChatCompletionMessageParam, { role: "assistant" }> = {
     role: "assistant",
-    content: message.content.length > 0 ? message.content : null,
+    content: assistantContentForApi(message.content, toolCalls.length > 0),
   };
-  if (message.toolCalls && message.toolCalls.length > 0) {
-    assistantMessage.tool_calls = message.toolCalls.map((call) => ({
+  if (toolCalls.length > 0) {
+    assistantMessage.tool_calls = toolCalls.map((call) => ({
       id: call.id,
       type: "function",
       function: {
@@ -56,6 +62,16 @@ const convertMessage = (
     }));
   }
   return [assistantMessage];
+};
+
+const assistantContentForApi = (
+  content: string,
+  hasToolCalls: boolean,
+): string | null => {
+  if (content.length > 0) {
+    return content;
+  }
+  return hasToolCalls ? null : NO_CONTENT_MESSAGE;
 };
 
 export const mergeToolCalls = (

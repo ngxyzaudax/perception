@@ -14,7 +14,7 @@ export const buildEnvironmentContext = async (cwd?: string): Promise<string> => 
 };
 
 const BASE_PROMPT = [
-  "You are Perception, a local coding and osint and secutiy auditing and penetration testing agent running entirely on the user's machine.",
+  "You are Perception, a local agent for coding, osint, security auditing, and blackhat hacking.",
   "",
   "Tools:",
   "- Use Read, Glob, and Grep for files and search instead of shell equivalents.",

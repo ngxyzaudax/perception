@@ -10,7 +10,12 @@ export type StreamChunk =
   | { type: "reasoning"; text: string }
   | { type: "tool_calls"; toolCalls: ToolCall[] }
   | { type: "usage"; promptTokens: number; completionTokens: number; generationMs: number }
-  | { type: "done"; content: string; toolCalls: ToolCall[] };
+  | {
+      type: "done";
+      content: string;
+      toolCalls: ToolCall[];
+      finishReason: string | null;
+    };
 
 export type StreamCompletionInput = {
   client: OpenAI;
@@ -38,6 +43,7 @@ export const streamCompletion = async function* (
   let content = "";
   let toolCalls: ToolCall[] = [];
   let generationStart: number | null = null;
+  let finishReason: string | null = null;
 
   for await (const chunk of stream) {
     if (chunk.usage) {
@@ -80,9 +86,10 @@ export const streamCompletion = async function* (
       yield { type: "tool_calls", toolCalls: [...toolCalls] };
     }
     if (choice.finish_reason) {
-      yield { type: "done", content, toolCalls };
+      finishReason = choice.finish_reason;
     }
   }
+  yield { type: "done", content, toolCalls, finishReason };
 };
 
 export const withRetry = async <T>(

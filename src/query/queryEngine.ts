@@ -6,12 +6,7 @@ import type { ChatMessage } from "../types/messages.js";
 import { createStreamingToolRunner } from "./streamingToolRunner.js";
 import { prepareWorking } from "./midQueryCompact.js";
 import { missingToolResults } from "./sanitizeHistory.js";
-import {
-  collectOrRecover,
-  handleStopHook,
-  isEmptyTurn,
-  MAX_EMPTY_TURN_RETRIES,
-} from "./queryRecovery.js";
+import { collectOrRecover, handleStopHook } from "./queryRecovery.js";
 import type { QueryInput, QueryResult } from "./queryTypes.js";
 import {
   createMaxTurnsResult,
@@ -32,7 +27,6 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
   let overflowRecoveryUsed = false;
   let reactiveCompactUsed = false;
   let compactedAtRequestCount = getUsage().requestCount;
-  let emptyTurnRetries = 0;
   let stopHookContinuations = 0;
   let compactFailures = 0;
 
@@ -95,14 +89,6 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
         turnCount,
       };
     }
-    if (isEmptyTurn(assistant) && emptyTurnRetries < MAX_EMPTY_TURN_RETRIES) {
-      emptyTurnRetries += 1;
-      input.onEvent({
-        type: "status",
-        message: `Model returned an empty response, retrying request (attempt ${emptyTurnRetries} of ${MAX_EMPTY_TURN_RETRIES}).`,
-      });
-      continue;
-    }
     working.push(assistant.message);
     input.onEvent({ type: "message_complete", message: assistant.message });
     if (assistant.toolCalls.length === 0) {
@@ -120,7 +106,6 @@ export const runQuery = async (input: QueryInput): Promise<QueryResult> => {
       input.onEvent({ type: "done" });
       return { messages: working.slice(1), reason: "completed", turnCount };
     }
-    emptyTurnRetries = 0;
     if (input.signal?.aborted) {
       working.push(...missingToolResults(assistant.message));
       return { messages: working.slice(1), reason: "aborted", turnCount };
